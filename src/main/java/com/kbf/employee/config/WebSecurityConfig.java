@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -27,7 +26,6 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
 @RequiredArgsConstructor
 public class WebSecurityConfig {
 
@@ -48,13 +46,29 @@ public class WebSecurityConfig {
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
-                        .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout"
+                        ).permitAll()
 
                         // Admin-only endpoints
-                        .requestMatchers("/api/employees/**", "/api/salaries/**").hasRole("ADMIN")
+                        .requestMatchers(
+                                "/api/employees",
+                                "/api/employees/**",
+                                "/api/salaries",
+                                "/api/salaries/**",
+                                "/api/tasks",
+                                "/api/tasks/**",
+                                "/api/files/**"
+                        ).hasRole("ADMIN")
 
-                        // Authenticated access
-                        .requestMatchers("/api/tasks/**").authenticated()
+                        // User-specific endpoints
+                        .requestMatchers(
+                                "/api/profile/**",
+                                "/api/my-tasks/**",
+                                "/api/my-salary/**"
+                        ).authenticated()
 
                         // Any other request
                         .anyRequest().permitAll()

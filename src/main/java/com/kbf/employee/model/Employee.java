@@ -17,6 +17,7 @@ import java.util.Set;
 @AllArgsConstructor
 @Table(name = "employees")
 public class Employee {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -26,6 +27,10 @@ public class Employee {
 
     @Column(nullable = false)
     private String name;
+
+    private String email;
+    private String phoneNumber;
+    private String department;
 
     @Column(nullable = false)
     private String password;

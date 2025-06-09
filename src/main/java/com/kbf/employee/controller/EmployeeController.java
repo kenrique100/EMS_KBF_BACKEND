@@ -6,6 +6,7 @@ import com.kbf.employee.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class EmployeeController {
     private final EmployeeService employeeService;
     private final FileStorageService fileStorageService;
@@ -34,6 +37,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeDTO> createEmployee(
             @Valid @RequestPart("employee") EmployeeDTO employeeDTO,
             @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
@@ -47,6 +51,7 @@ public class EmployeeController {
     @Operation(summary = "Get all employees")
     @ApiResponse(responseCode = "200", description = "List of all employees")
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<EmployeeDTO>> getAllEmployees() {
         return ResponseEntity.ok(employeeService.getAllEmployees());
     }
@@ -57,6 +62,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeDTO> getEmployeeById(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.getEmployeeById(id));
     }
@@ -68,6 +74,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeDTO> updateEmployee(
             @PathVariable Long id,
             @Valid @RequestPart("employee") EmployeeDTO employeeDTO,
@@ -85,6 +92,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
         employeeService.deleteEmployee(id);
         return ResponseEntity.noContent().build();
@@ -92,6 +100,7 @@ public class EmployeeController {
 
     @Operation(summary = "Get all stored files")
     @GetMapping("/files")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<String>> listAllFiles() {
         List<String> fileNames = fileStorageService.loadAll()
                 .map(Path::toString)
@@ -101,6 +110,7 @@ public class EmployeeController {
 
     @Operation(summary = "Download a file")
     @GetMapping("/files/{subDirectory}/{filename:.+}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Resource> downloadFile(
             @PathVariable String subDirectory,
             @PathVariable String filename) {
@@ -114,6 +124,7 @@ public class EmployeeController {
 
     @Operation(summary = "Delete all files")
     @DeleteMapping("/files")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteAllFiles() {
         fileStorageService.deleteAll();
         fileStorageService.init();

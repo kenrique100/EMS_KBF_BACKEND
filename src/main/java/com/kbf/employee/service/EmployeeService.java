@@ -1,6 +1,7 @@
 package com.kbf.employee.service;
 
 import com.kbf.employee.dto.EmployeeDTO;
+import com.kbf.employee.dto.EmployeeProfileDTO;
 import com.kbf.employee.exception.ResourceNotFoundException;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.model.Role;
@@ -22,6 +23,8 @@ public class EmployeeService {
     private final FileStorageService fileStorageService;
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
+    private final SalaryService salaryService;
+    private final TaskService taskService;
 
     @Transactional
     public EmployeeDTO createEmployee(EmployeeDTO employeeDTO) {
@@ -136,5 +139,23 @@ public class EmployeeService {
         dto.setDateOfEmployment(employee.getDateOfEmployment());
         dto.setStatus(employee.getStatus());
         return dto;
+    }
+    public EmployeeProfileDTO getEmployeeProfile(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        EmployeeProfileDTO profile = new EmployeeProfileDTO();
+        profile.setId(employee.getId());
+        profile.setUsername(employee.getUsername());
+        profile.setEmail(employee.getEmail());
+        profile.setPhoneNumber(employee.getPhoneNumber());
+        profile.setDepartment(employee.getDepartment());
+        profile.setProfilePictureUrl(employee.getProfilePicturePath());
+
+        // Get salary and tasks
+        profile.setSalaryPayments(salaryService.getSalaryPaymentsForEmployee(employeeId));
+        profile.setTasks(taskService.getAllTasksForEmployee(employeeId));
+
+        return profile;
     }
 }

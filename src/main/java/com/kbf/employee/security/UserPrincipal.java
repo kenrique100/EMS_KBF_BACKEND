@@ -7,17 +7,19 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+@Getter
 public class UserPrincipal implements UserDetails {
-    @Getter
+
     private final Long id;
     private final String username;
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public UserPrincipal(Long id, String username, String password, Collection<? extends GrantedAuthority> authorities) {
+    public UserPrincipal(Long id, String username, String password,
+                         Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.username = username;
         this.password = password;
@@ -25,9 +27,9 @@ public class UserPrincipal implements UserDetails {
     }
 
     public static UserPrincipal create(Employee employee) {
-        List<GrantedAuthority> authorities = employee.getRoles().stream()
+        Set<GrantedAuthority> authorities = employee.getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority(role.getName().name()))
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
 
         return new UserPrincipal(
                 employee.getId(),
@@ -35,21 +37,6 @@ public class UserPrincipal implements UserDetails {
                 employee.getPassword(),
                 authorities
         );
-    }
-
-    @Override
-    public String getUsername() {
-        return username;
-    }
-
-    @Override
-    public String getPassword() {
-        return password;
-    }
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return authorities;
     }
 
     @Override

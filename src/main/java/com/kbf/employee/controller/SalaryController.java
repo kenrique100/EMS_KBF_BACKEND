@@ -5,10 +5,12 @@ import com.kbf.employee.service.SalaryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/salaries")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class SalaryController {
 
     private final SalaryService salaryService;
@@ -28,6 +31,7 @@ public class SalaryController {
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SalaryPaymentDTO> createSalaryPayment(@Valid @RequestBody SalaryPaymentDTO salaryPaymentDTO) {
         return ResponseEntity.ok(salaryService.createSalaryPayment(salaryPaymentDTO));
     }
@@ -35,6 +39,7 @@ public class SalaryController {
     @Operation(summary = "Get all salary payments")
     @ApiResponse(responseCode = "200", description = "List of all salary payments")
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<SalaryPaymentDTO>> getAllSalaryPayments() {
         return ResponseEntity.ok(salaryService.getAllSalaryPayments());
     }
@@ -45,6 +50,7 @@ public class SalaryController {
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @GetMapping("/employee/{employeeId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<SalaryPaymentDTO>> getSalaryPaymentsForEmployee(@PathVariable Long employeeId) {
         return ResponseEntity.ok(salaryService.getSalaryPaymentsForEmployee(employeeId));
     }
@@ -55,6 +61,7 @@ public class SalaryController {
             @ApiResponse(responseCode = "404", description = "Salary payment not found")
     })
     @GetMapping("/{paymentId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SalaryPaymentDTO> getSalaryPaymentById(@PathVariable Long paymentId) {
         return ResponseEntity.ok(salaryService.getSalaryPaymentById(paymentId));
     }
@@ -65,6 +72,7 @@ public class SalaryController {
             @ApiResponse(responseCode = "404", description = "Salary payment not found")
     })
     @DeleteMapping("/{paymentId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteSalaryPayment(@PathVariable Long paymentId) {
         salaryService.deleteSalaryPayment(paymentId);
         return ResponseEntity.noContent().build();

@@ -7,10 +7,12 @@ import com.kbf.employee.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class TaskController {
 
     private final TaskService taskService;
@@ -30,6 +33,7 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TaskDTO> createTask(@Valid @RequestBody TaskDTO taskDTO) {
         return ResponseEntity.ok(taskService.createTask(taskDTO));
     }
@@ -37,6 +41,7 @@ public class TaskController {
     @Operation(summary = "Get all tasks")
     @ApiResponse(responseCode = "200", description = "List of all tasks")
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<TaskDTO>> getAllTasks() {
         return ResponseEntity.ok(taskService.getAllTasks());
     }
@@ -47,6 +52,7 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @GetMapping("/employee/{employeeId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<TaskDTO>> getTasksForEmployee(@PathVariable Long employeeId) {
         return ResponseEntity.ok(taskService.getAllTasksForEmployee(employeeId));
     }
@@ -57,6 +63,7 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Task not found")
     })
     @GetMapping("/{taskId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TaskDTO> getTaskById(@PathVariable Long taskId) {
         return ResponseEntity.ok(taskService.getTaskById(taskId));
     }
@@ -68,6 +75,7 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Task not found")
     })
     @PutMapping("/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TaskDTO> updateTaskStatus(@Valid @RequestBody TaskActionDTO actionDTO) {
         return ResponseEntity.ok(taskService.updateTaskStatus(actionDTO));
     }
@@ -78,6 +86,7 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Task not found")
     })
     @DeleteMapping("/{taskId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteTask(@PathVariable Long taskId) {
         taskService.deleteTask(taskId);
         return ResponseEntity.noContent().build();
@@ -89,6 +98,7 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @GetMapping("/employee/{employeeId}/status/{status}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<TaskDTO>> getTasksByStatusForEmployee(
             @PathVariable Long employeeId,
             @PathVariable Task.TaskStatus status) {

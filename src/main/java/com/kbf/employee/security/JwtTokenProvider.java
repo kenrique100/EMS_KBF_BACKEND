@@ -6,9 +6,12 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -26,8 +29,11 @@ public class JwtTokenProvider {
     private final long accessTokenExpirationMs;
     private final long refreshTokenExpirationMs;
     private final Set<String> blacklistedTokens = ConcurrentHashMap.newKeySet();
+    private final UserDetailsService userDetailsService;
 
-    public JwtTokenProvider(JwtConfigProperties jwtConfig) {
+    public JwtTokenProvider(JwtConfigProperties jwtConfig, UserDetailsService userDetailsService) {
+        this.userDetailsService = userDetailsService;
+
         if (!StringUtils.hasText(jwtConfig.getSecret())) {
             throw new IllegalArgumentException("JWT secret cannot be null or empty");
         }
@@ -43,6 +49,10 @@ public class JwtTokenProvider {
 
         this.accessTokenExpirationMs = jwtConfig.getAccessTokenExpirationMs();
         this.refreshTokenExpirationMs = jwtConfig.getRefreshTokenExpirationMs();
+    }
+
+    public UserDetails loadUserByUsername(String username) {
+        return userDetailsService.loadUserByUsername(username);
     }
 
     public String generateAccessToken(Authentication authentication) {
@@ -76,6 +86,14 @@ public class JwtTokenProvider {
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
+    }
+
+    public String getJwtFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
     }
 
     public String getUsernameFromToken(String token) {
@@ -113,6 +131,10 @@ public class JwtTokenProvider {
         } catch (IllegalArgumentException ex) {
             throw new JwtAuthenticationException("JWT claims string is empty", ex);
         }
+    }
+
+    public void blacklistToken(String token) {
+        blacklistedTokens.add(token);
     }
 
     public boolean isTokenBlacklisted(String token) {
