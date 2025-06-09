@@ -3,22 +3,25 @@ package com.kbf.employee.service;
 import com.kbf.employee.dto.EmployeeDTO;
 import com.kbf.employee.exception.ResourceNotFoundException;
 import com.kbf.employee.model.Employee;
+import com.kbf.employee.model.Role;
 import com.kbf.employee.repository.EmployeeRepository;
+import com.kbf.employee.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class EmployeeService {
-
     private final EmployeeRepository employeeRepository;
     private final FileStorageService fileStorageService;
     private final PasswordEncoder passwordEncoder;
+    private final RoleRepository roleRepository;
 
     @Transactional
     public EmployeeDTO createEmployee(EmployeeDTO employeeDTO) {
@@ -32,6 +35,11 @@ public class EmployeeService {
         employee.setPassword(passwordEncoder.encode(employeeDTO.getPassword()));
         employee.setDateOfEmployment(employeeDTO.getDateOfEmployment());
         employee.setStatus(Employee.EmployeeStatus.ACTIVE);
+
+        // Assign default role
+        Role userRole = roleRepository.findByName(Role.RoleName.ROLE_USER)
+                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+        employee.setRoles(Set.of(userRole));
 
         // Handle file uploads
         if (employeeDTO.getProfilePicture() != null && !employeeDTO.getProfilePicture().isEmpty()) {
@@ -65,39 +73,38 @@ public class EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
 
-        if (employeeDTO.getName() != null) {
-            employee.setName(employeeDTO.getName());
+        if (!employee.getUsername().equals(employeeDTO.getUsername()) &&
+                employeeRepository.existsByUsername(employeeDTO.getUsername())) {
+            throw new IllegalArgumentException("Username already exists");
         }
 
-        if (employeeDTO.getPassword() != null) {
+        employee.setUsername(employeeDTO.getUsername());
+        employee.setName(employeeDTO.getName());
+
+        if (employeeDTO.getPassword() != null && !employeeDTO.getPassword().isEmpty()) {
             employee.setPassword(passwordEncoder.encode(employeeDTO.getPassword()));
         }
 
-        if (employeeDTO.getDateOfEmployment() != null) {
-            employee.setDateOfEmployment(employeeDTO.getDateOfEmployment());
-        }
+        employee.setDateOfEmployment(employeeDTO.getDateOfEmployment());
 
         if (employeeDTO.getStatus() != null) {
             employee.setStatus(employeeDTO.getStatus());
         }
 
-        // Handle profile picture update
+        // Handle file uploads
         if (employeeDTO.getProfilePicture() != null && !employeeDTO.getProfilePicture().isEmpty()) {
-            // Delete old file if exists
+            String filename = fileStorageService.store(employeeDTO.getProfilePicture(), "profiles");
             if (employee.getProfilePicturePath() != null) {
                 fileStorageService.delete(employee.getProfilePicturePath(), "profiles");
             }
-            String filename = fileStorageService.store(employeeDTO.getProfilePicture(), "profiles");
             employee.setProfilePicturePath(filename);
         }
 
-        // Handle document update
         if (employeeDTO.getDocument() != null && !employeeDTO.getDocument().isEmpty()) {
-            // Delete old file if exists
+            String filename = fileStorageService.store(employeeDTO.getDocument(), "documents");
             if (employee.getDocumentPath() != null) {
                 fileStorageService.delete(employee.getDocumentPath(), "documents");
             }
-            String filename = fileStorageService.store(employeeDTO.getDocument(), "documents");
             employee.setDocumentPath(filename);
         }
 
@@ -128,7 +135,6 @@ public class EmployeeService {
         dto.setName(employee.getName());
         dto.setDateOfEmployment(employee.getDateOfEmployment());
         dto.setStatus(employee.getStatus());
-        // Note: We don't set password in DTO for security reasons
         return dto;
     }
 }

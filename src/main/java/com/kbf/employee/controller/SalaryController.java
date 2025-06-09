@@ -32,6 +32,13 @@ public class SalaryController {
         return ResponseEntity.ok(salaryService.createSalaryPayment(salaryPaymentDTO));
     }
 
+    @Operation(summary = "Get all salary payments")
+    @ApiResponse(responseCode = "200", description = "List of all salary payments")
+    @GetMapping
+    public ResponseEntity<List<SalaryPaymentDTO>> getAllSalaryPayments() {
+        return ResponseEntity.ok(salaryService.getAllSalaryPayments());
+    }
+
     @Operation(summary = "Get all salary payments for an employee")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of salary payments retrieved successfully"),

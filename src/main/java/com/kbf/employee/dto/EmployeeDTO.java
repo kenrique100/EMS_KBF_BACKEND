@@ -34,10 +34,10 @@ public class EmployeeDTO {
     private LocalDate dateOfEmployment;
 
     @Schema(description = "Profile picture file")
-    private MultipartFile profilePicture;
+    private transient MultipartFile profilePicture;
 
     @Schema(description = "Document file (CV, certificates, etc.)")
-    private MultipartFile document;
+    private transient MultipartFile document;
 
     @Schema(description = "Employee status", example = "ACTIVE", accessMode = Schema.AccessMode.READ_ONLY)
     private Employee.EmployeeStatus status;

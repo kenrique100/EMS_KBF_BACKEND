@@ -27,15 +27,22 @@ public class SalaryService {
         Employee employee = employeeRepository.findById(salaryPaymentDTO.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + salaryPaymentDTO.getEmployeeId()));
 
-        SalaryPayment payment = new SalaryPayment();
-        payment.setAmount(salaryPaymentDTO.getAmount());
-        payment.setPaymentDate(salaryPaymentDTO.getPaymentDate());
-        payment.setEmployee(employee);
-        payment.setStatus(SalaryPayment.PaymentStatus.PROCESSED);
-        payment.setPaymentReference(generatePaymentReference());
+        SalaryPayment payment = SalaryPayment.builder()
+                .amount(salaryPaymentDTO.getAmount())
+                .paymentDate(salaryPaymentDTO.getPaymentDate())
+                .employee(employee)
+                .status(SalaryPayment.PaymentStatus.PROCESSED)
+                .paymentReference(generatePaymentReference())
+                .build();
 
         SalaryPayment savedPayment = salaryPaymentRepository.save(payment);
         return convertToDTO(savedPayment);
+    }
+
+    public List<SalaryPaymentDTO> getAllSalaryPayments() {
+        return salaryPaymentRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     public List<SalaryPaymentDTO> getSalaryPaymentsForEmployee(Long employeeId) {
@@ -55,9 +62,10 @@ public class SalaryService {
 
     @Transactional
     public void deleteSalaryPayment(Long paymentId) {
-        SalaryPayment payment = salaryPaymentRepository.findById(paymentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Salary payment not found with id: " + paymentId));
-        salaryPaymentRepository.delete(payment);
+        if (!salaryPaymentRepository.existsById(paymentId)) {
+            throw new ResourceNotFoundException("Salary payment not found with id: " + paymentId);
+        }
+        salaryPaymentRepository.deleteById(paymentId);
     }
 
     private String generatePaymentReference() {
@@ -65,13 +73,13 @@ public class SalaryService {
     }
 
     private SalaryPaymentDTO convertToDTO(SalaryPayment payment) {
-        SalaryPaymentDTO dto = new SalaryPaymentDTO();
-        dto.setId(payment.getId());
-        dto.setAmount(payment.getAmount());
-        dto.setPaymentDate(payment.getPaymentDate());
-        dto.setEmployeeId(payment.getEmployee().getId());
-        dto.setStatus(payment.getStatus());
-        dto.setPaymentReference(payment.getPaymentReference());
-        return dto;
+        return SalaryPaymentDTO.builder()
+                .id(payment.getId())
+                .amount(payment.getAmount())
+                .paymentDate(payment.getPaymentDate())
+                .employeeId(payment.getEmployee().getId())
+                .status(payment.getStatus())
+                .paymentReference(payment.getPaymentReference())
+                .build();
     }
 }

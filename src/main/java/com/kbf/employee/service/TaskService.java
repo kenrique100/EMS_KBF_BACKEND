@@ -28,12 +28,13 @@ public class TaskService {
         Employee employee = employeeRepository.findById(taskDTO.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + taskDTO.getEmployeeId()));
 
-        Task task = new Task();
-        task.setTitle(taskDTO.getTitle());
-        task.setDescription(taskDTO.getDescription());
-        task.setDeadline(taskDTO.getDeadline());
-        task.setEmployee(employee);
-        task.setStatus(Task.TaskStatus.PENDING);
+        Task task = Task.builder()
+                .title(taskDTO.getTitle())
+                .description(taskDTO.getDescription())
+                .deadline(taskDTO.getDeadline())
+                .employee(employee)
+                .status(Task.TaskStatus.PENDING)
+                .build();
 
         if (taskDTO.getExpectedHours() != null) {
             task.setExpectedHours(Duration.ofHours(taskDTO.getExpectedHours()));
@@ -41,6 +42,12 @@ public class TaskService {
 
         Task savedTask = taskRepository.save(task);
         return convertToDTO(savedTask);
+    }
+
+    public List<TaskDTO> getAllTasks() {
+        return taskRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     public List<TaskDTO> getAllTasksForEmployee(Long employeeId) {
@@ -113,9 +120,10 @@ public class TaskService {
 
     @Transactional
     public void deleteTask(Long taskId) {
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
-        taskRepository.delete(task);
+        if (!taskRepository.existsById(taskId)) {
+            throw new ResourceNotFoundException("Task not found with id: " + taskId);
+        }
+        taskRepository.deleteById(taskId);
     }
 
     private TaskDTO convertToDTO(Task task) {

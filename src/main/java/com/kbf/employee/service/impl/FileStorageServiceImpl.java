@@ -20,7 +20,6 @@ import java.util.stream.Stream;
 
 @Service
 public class FileStorageServiceImpl implements FileStorageService {
-
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
 

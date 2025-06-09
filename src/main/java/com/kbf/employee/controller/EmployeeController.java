@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
 public class EmployeeController {
-
     private final EmployeeService employeeService;
     private final FileStorageService fileStorageService;
 
@@ -68,10 +67,15 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "Employee not found"),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<EmployeeDTO> updateEmployee(
             @PathVariable Long id,
-            @Valid @ModelAttribute EmployeeDTO employeeDTO) {
+            @Valid @RequestPart("employee") EmployeeDTO employeeDTO,
+            @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
+            @RequestPart(value = "document", required = false) MultipartFile document) {
+
+        employeeDTO.setProfilePicture(profilePicture);
+        employeeDTO.setDocument(document);
         return ResponseEntity.ok(employeeService.updateEmployee(id, employeeDTO));
     }
 

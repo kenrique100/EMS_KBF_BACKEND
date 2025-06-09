@@ -34,6 +34,13 @@ public class TaskController {
         return ResponseEntity.ok(taskService.createTask(taskDTO));
     }
 
+    @Operation(summary = "Get all tasks")
+    @ApiResponse(responseCode = "200", description = "List of all tasks")
+    @GetMapping
+    public ResponseEntity<List<TaskDTO>> getAllTasks() {
+        return ResponseEntity.ok(taskService.getAllTasks());
+    }
+
     @Operation(summary = "Get all tasks for an employee")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of tasks retrieved successfully"),

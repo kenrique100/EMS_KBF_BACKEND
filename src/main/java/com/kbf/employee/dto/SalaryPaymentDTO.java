@@ -5,12 +5,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
+import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
+@Builder
 @Schema(description = "Salary Payment Data Transfer Object")
 public class SalaryPaymentDTO {
     @Schema(description = "Payment ID", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
