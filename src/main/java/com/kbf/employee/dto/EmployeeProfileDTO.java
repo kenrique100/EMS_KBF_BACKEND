@@ -1,5 +1,6 @@
 package com.kbf.employee.dto;
 
+import com.kbf.employee.model.Department;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,7 +15,7 @@ public class EmployeeProfileDTO {
     private String username;
     private String email;
     private String phoneNumber;
-    private String department;
+    private Department department;
     private String profilePictureUrl;
     private List<SalaryPaymentDTO> salaryPayments;
     private List<TaskDTO> tasks;

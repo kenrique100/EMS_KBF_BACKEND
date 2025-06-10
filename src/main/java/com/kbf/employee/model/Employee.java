@@ -17,7 +17,6 @@ import java.util.Set;
 @AllArgsConstructor
 @Table(name = "employees")
 public class Employee {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -28,9 +27,14 @@ public class Employee {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false, unique = true)
     private String email;
+
     private String phoneNumber;
-    private String department;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Department department;
 
     @Column(nullable = false)
     private String password;

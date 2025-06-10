@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +36,8 @@ public class TaskController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TaskDTO> createTask(@Valid @RequestBody TaskDTO taskDTO) {
-        return ResponseEntity.ok(taskService.createTask(taskDTO));
+        TaskDTO created = taskService.createTask(taskDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @Operation(summary = "Get all tasks")
