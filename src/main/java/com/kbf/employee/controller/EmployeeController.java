@@ -43,9 +43,7 @@ public class EmployeeController {
             @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
             @RequestPart(value = "document", required = false) MultipartFile document) {
 
-        employeeDTO.setProfilePicture(profilePicture);
-        employeeDTO.setDocument(document);
-        return ResponseEntity.ok(employeeService.createEmployee(employeeDTO));
+        return ResponseEntity.ok(employeeService.createEmployee(employeeDTO, profilePicture, document));
     }
 
     @Operation(summary = "Get all employees")
@@ -81,9 +79,7 @@ public class EmployeeController {
             @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
             @RequestPart(value = "document", required = false) MultipartFile document) {
 
-        employeeDTO.setProfilePicture(profilePicture);
-        employeeDTO.setDocument(document);
-        return ResponseEntity.ok(employeeService.updateEmployee(id, employeeDTO));
+        return ResponseEntity.ok(employeeService.updateEmployee(id, employeeDTO, profilePicture, document));
     }
 
     @Operation(summary = "Delete an employee")

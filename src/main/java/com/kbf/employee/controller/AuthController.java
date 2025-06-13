@@ -1,6 +1,7 @@
 package com.kbf.employee.controller;
 
 import com.kbf.employee.dto.*;
+import com.kbf.employee.model.Employee;
 import com.kbf.employee.security.JwtTokenProvider;
 import com.kbf.employee.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +13,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -35,7 +38,11 @@ public class AuthController {
         String jwt = tokenProvider.generateAccessToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
-        return ResponseEntity.ok(new LoginResponse(jwt, refreshToken));
+        // Get user details to include in response
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        UserResponse userResponse = createUserResponse(userPrincipal.getEmployee());
+
+        return ResponseEntity.ok(new LoginResponse(jwt, refreshToken, userResponse));
     }
 
     @PostMapping("/refresh")
@@ -43,7 +50,7 @@ public class AuthController {
         String refreshToken = refreshTokenRequest.getRefreshToken();
 
         if (!tokenProvider.validateToken(refreshToken)) {
-            return ResponseEntity.badRequest().body(new LoginResponse("Invalid refresh token", null));
+            return ResponseEntity.badRequest().body(new LoginResponse("Invalid refresh token", null, null));
         }
 
         String username = tokenProvider.getUsernameFromToken(refreshToken);
@@ -57,8 +64,9 @@ public class AuthController {
 
         String newAccessToken = tokenProvider.generateAccessToken(authentication);
         String newRefreshToken = tokenProvider.generateRefreshToken(authentication);
+        UserResponse userResponse = createUserResponse(userPrincipal.getEmployee());
 
-        return ResponseEntity.ok(new LoginResponse(newAccessToken, newRefreshToken));
+        return ResponseEntity.ok(new LoginResponse(newAccessToken, newRefreshToken, userResponse));
     }
 
     @PostMapping("/logout")
@@ -72,5 +80,24 @@ public class AuthController {
         }
 
         return ResponseEntity.badRequest().body(new LogoutResponse("No token provided"));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        UserResponse response = createUserResponse(userPrincipal.getEmployee());
+        return ResponseEntity.ok(response);
+    }
+
+    private UserResponse createUserResponse(Employee employee) {
+        return new UserResponse(
+                employee.getId().toString(),
+                employee.getUsername(),
+                employee.getName(),
+                employee.getEmail(),
+                employee.getRoles().stream()
+                        .map(role -> role.getName().name())
+                        .collect(Collectors.toList())
+        );
     }
 }

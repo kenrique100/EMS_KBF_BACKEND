@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Set;
@@ -27,12 +28,28 @@ public class EmployeeService {
     private final TaskService taskService;
 
     @Transactional
-    public EmployeeDTO createEmployee(EmployeeDTO dto) {
+    public EmployeeDTO createEmployee(EmployeeDTO dto, MultipartFile profilePicture, MultipartFile document) {
+        validateEmployeeCreation(dto);
+
+        Employee employee = buildEmployeeFromDTO(dto);
+        setDefaultRole(employee);
+        handleFileUploads(employee, profilePicture, document);
+
+        Employee savedEmployee = employeeRepository.save(employee);
+        return convertToDTO(savedEmployee);
+    }
+
+    private void validateEmployeeCreation(EmployeeDTO dto) {
         if (employeeRepository.existsByUsername(dto.getUsername())) {
             throw new IllegalArgumentException("Username already exists");
         }
+        if (employeeRepository.existsByEmail(dto.getEmail())) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+    }
 
-        Employee employee = Employee.builder()
+    private Employee buildEmployeeFromDTO(EmployeeDTO dto) {
+        return Employee.builder()
                 .username(dto.getUsername())
                 .name(dto.getName())
                 .email(dto.getEmail())
@@ -42,44 +59,52 @@ public class EmployeeService {
                 .dateOfEmployment(dto.getDateOfEmployment())
                 .status(Employee.EmployeeStatus.ACTIVE)
                 .build();
+    }
 
+    private void setDefaultRole(Employee employee) {
         Role userRole = roleRepository.findByName(Role.RoleName.ROLE_USER)
-                .orElseThrow(() -> new RuntimeException("Default role not found."));
+                .orElseThrow(() -> new RuntimeException("Default role not found"));
         employee.setRoles(Set.of(userRole));
-
-        if (dto.getProfilePicture() != null && !dto.getProfilePicture().isEmpty()) {
-            employee.setProfilePicturePath(fileStorageService.store(dto.getProfilePicture(), "profiles"));
-        }
-
-        if (dto.getDocument() != null && !dto.getDocument().isEmpty()) {
-            employee.setDocumentPath(fileStorageService.store(dto.getDocument(), "documents"));
-        }
-
-        return convertToDTO(employeeRepository.save(employee));
     }
 
-    public List<EmployeeDTO> getAllEmployees() {
-        return employeeRepository.findAll()
-                .stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
+    private void handleFileUploads(Employee employee, MultipartFile profilePicture, MultipartFile document) {
+        if (profilePicture != null && !profilePicture.isEmpty()) {
+            String filename = fileStorageService.store(profilePicture, "profiles");
+            employee.setProfilePicturePath("profiles/" + filename);
+        }
 
-    public EmployeeDTO getEmployeeById(Long id) {
-        return convertToDTO(employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id)));
+        if (document != null && !document.isEmpty()) {
+            String filename = fileStorageService.store(document, "documents");
+            employee.setDocumentPath("documents/" + filename);
+        }
     }
 
     @Transactional
-    public EmployeeDTO updateEmployee(Long id, EmployeeDTO dto) {
+    public EmployeeDTO updateEmployee(Long id, EmployeeDTO dto, MultipartFile profilePicture, MultipartFile document) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
+        validateEmployeeUpdate(employee, dto);
+        updateEmployeeFields(employee, dto);
+        handleFileUpdates(employee, profilePicture, document);
+
+        Employee updatedEmployee = employeeRepository.save(employee);
+        return convertToDTO(updatedEmployee);
+    }
+
+    private void validateEmployeeUpdate(Employee employee, EmployeeDTO dto) {
         if (!employee.getUsername().equals(dto.getUsername()) &&
                 employeeRepository.existsByUsername(dto.getUsername())) {
             throw new IllegalArgumentException("Username already exists");
         }
 
+        if (!employee.getEmail().equals(dto.getEmail()) &&
+                employeeRepository.existsByEmail(dto.getEmail())) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+    }
+
+    private void updateEmployeeFields(Employee employee, EmployeeDTO dto) {
         employee.setUsername(dto.getUsername());
         employee.setName(dto.getName());
         employee.setEmail(dto.getEmail());
@@ -87,29 +112,46 @@ public class EmployeeService {
         employee.setDepartment(dto.getDepartment());
         employee.setDateOfEmployment(dto.getDateOfEmployment());
 
-        if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
+        if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
             employee.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
 
         if (dto.getStatus() != null) {
             employee.setStatus(dto.getStatus());
         }
+    }
 
-        if (dto.getProfilePicture() != null && !dto.getProfilePicture().isEmpty()) {
+    private void handleFileUpdates(Employee employee, MultipartFile profilePicture, MultipartFile document) {
+        if (profilePicture != null && !profilePicture.isEmpty()) {
             if (employee.getProfilePicturePath() != null) {
-                fileStorageService.delete(employee.getProfilePicturePath(), "profiles");
+                String existingFile = employee.getProfilePicturePath().split("/")[1];
+                fileStorageService.delete(existingFile, "profiles");
             }
-            employee.setProfilePicturePath(fileStorageService.store(dto.getProfilePicture(), "profiles"));
+            String filename = fileStorageService.store(profilePicture, "profiles");
+            employee.setProfilePicturePath("profiles/" + filename);
         }
 
-        if (dto.getDocument() != null && !dto.getDocument().isEmpty()) {
+        if (document != null && !document.isEmpty()) {
             if (employee.getDocumentPath() != null) {
-                fileStorageService.delete(employee.getDocumentPath(), "documents");
+                String existingFile = employee.getDocumentPath().split("/")[1];
+                fileStorageService.delete(existingFile, "documents");
             }
-            employee.setDocumentPath(fileStorageService.store(dto.getDocument(), "documents"));
+            String filename = fileStorageService.store(document, "documents");
+            employee.setDocumentPath("documents/" + filename);
         }
+    }
 
-        return convertToDTO(employeeRepository.save(employee));
+    // Other methods remain unchanged...
+    public List<EmployeeDTO> getAllEmployees() {
+        return employeeRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public EmployeeDTO getEmployeeById(Long id) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
+        return convertToDTO(employee);
     }
 
     @Transactional
@@ -118,10 +160,13 @@ public class EmployeeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
         if (employee.getProfilePicturePath() != null) {
-            fileStorageService.delete(employee.getProfilePicturePath(), "profiles");
+            String filename = employee.getProfilePicturePath().split("/")[1];
+            fileStorageService.delete(filename, "profiles");
         }
+
         if (employee.getDocumentPath() != null) {
-            fileStorageService.delete(employee.getDocumentPath(), "documents");
+            String filename = employee.getDocumentPath().split("/")[1];
+            fileStorageService.delete(filename, "documents");
         }
 
         employeeRepository.delete(employee);
@@ -131,28 +176,28 @@ public class EmployeeService {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        return new EmployeeProfileDTO(
-                employee.getId(),
-                employee.getUsername(),
-                employee.getEmail(),
-                employee.getPhoneNumber(),
-                employee.getDepartment(),
-                employee.getProfilePicturePath(),
-                salaryService.getSalaryPaymentsForEmployee(employeeId),
-                taskService.getAllTasksForEmployee(employeeId)
-        );
+        return EmployeeProfileDTO.builder()
+                .id(employee.getId())
+                .username(employee.getUsername())
+                .email(employee.getEmail())
+                .phoneNumber(employee.getPhoneNumber())
+                .department(employee.getDepartment())
+                .profilePictureUrl(employee.getProfilePicturePath())
+                .salaryPayments(salaryService.getSalaryPaymentsForEmployee(employeeId))
+                .tasks(taskService.getAllTasksForEmployee(employeeId))
+                .build();
     }
 
     private EmployeeDTO convertToDTO(Employee employee) {
-        EmployeeDTO dto = new EmployeeDTO();
-        dto.setId(employee.getId());
-        dto.setUsername(employee.getUsername());
-        dto.setName(employee.getName());
-        dto.setEmail(employee.getEmail());
-        dto.setPhoneNumber(employee.getPhoneNumber());
-        dto.setDepartment(employee.getDepartment());
-        dto.setDateOfEmployment(employee.getDateOfEmployment());
-        dto.setStatus(employee.getStatus());
-        return dto;
+        return EmployeeDTO.builder()
+                .id(employee.getId())
+                .username(employee.getUsername())
+                .name(employee.getName())
+                .email(employee.getEmail())
+                .phoneNumber(employee.getPhoneNumber())
+                .department(employee.getDepartment())
+                .dateOfEmployment(employee.getDateOfEmployment())
+                .status(employee.getStatus())
+                .build();
     }
 }

@@ -27,10 +27,10 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public void init() {
         try {
-            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
-            Files.createDirectories(uploadPath);
-            Files.createDirectories(uploadPath.resolve("profiles"));
-            Files.createDirectories(uploadPath.resolve("documents"));
+            Path rootLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Files.createDirectories(rootLocation);
+            Files.createDirectories(rootLocation.resolve("profiles"));
+            Files.createDirectories(rootLocation.resolve("documents"));
         } catch (IOException e) {
             throw new RuntimeException("Could not initialize storage", e);
         }
@@ -38,19 +38,21 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public String store(MultipartFile file, String subDirectory) {
-        if (file.isEmpty()) {
-            throw new RuntimeException("Failed to store empty file.");
-        }
-
         try {
+            if (file.isEmpty()) {
+                throw new RuntimeException("Failed to store empty file");
+            }
+
             String filename = System.currentTimeMillis() + "_" + file.getOriginalFilename();
             Path destinationFile = Paths.get(uploadDir)
                     .resolve(subDirectory)
                     .resolve(filename)
-                    .normalize().toAbsolutePath();
+                    .normalize()
+                    .toAbsolutePath();
 
+            // Security check
             if (!destinationFile.getParent().equals(Paths.get(uploadDir).resolve(subDirectory).toAbsolutePath())) {
-                throw new RuntimeException("Cannot store file outside current directory.");
+                throw new RuntimeException("Cannot store file outside current directory");
             }
 
             try (InputStream inputStream = file.getInputStream()) {
@@ -58,14 +60,14 @@ public class FileStorageServiceImpl implements FileStorageService {
             }
             return filename;
         } catch (IOException e) {
-            throw new RuntimeException("Failed to store file.", e);
+            throw new RuntimeException("Failed to store file", e);
         }
     }
 
     @Override
     public Stream<Path> loadAll() {
-        try (Stream<Path> walk = Files.walk(Paths.get(uploadDir), 1)) {
-            return walk
+        try {
+            return Files.walk(Paths.get(uploadDir), 1)
                     .filter(path -> !path.equals(Paths.get(uploadDir)))
                     .map(Paths.get(uploadDir)::relativize);
         } catch (IOException e) {
@@ -101,7 +103,8 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public void delete(String filename, String subDirectory) {
         try {
-            Files.deleteIfExists(Paths.get(uploadDir).resolve(subDirectory).resolve(filename));
+            Path file = load(filename, subDirectory);
+            Files.deleteIfExists(file);
         } catch (IOException e) {
             throw new RuntimeException("Failed to delete file", e);
         }

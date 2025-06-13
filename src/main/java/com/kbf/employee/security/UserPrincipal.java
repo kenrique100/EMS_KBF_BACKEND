@@ -17,13 +17,17 @@ public class UserPrincipal implements UserDetails {
     private final String username;
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities;
+    @Getter
+    private final Employee employee; // Add Employee field
 
     public UserPrincipal(Long id, String username, String password,
-                         Collection<? extends GrantedAuthority> authorities) {
+                         Collection<? extends GrantedAuthority> authorities,
+                         Employee employee) { // Add Employee parameter
         this.id = id;
         this.username = username;
         this.password = password;
         this.authorities = authorities;
+        this.employee = employee; // Initialize employee
     }
 
     public static UserPrincipal create(Employee employee) {
@@ -35,7 +39,8 @@ public class UserPrincipal implements UserDetails {
                 employee.getId(),
                 employee.getUsername(),
                 employee.getPassword(),
-                authorities
+                authorities,
+                employee // Pass the employee object
         );
     }
 
