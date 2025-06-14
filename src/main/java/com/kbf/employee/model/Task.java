@@ -30,7 +30,7 @@ public class Task {
     @Temporal(TemporalType.DATE)
     private Date deadline;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
