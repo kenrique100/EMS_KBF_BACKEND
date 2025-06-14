@@ -1,5 +1,6 @@
 package com.kbf.employee.service.impl;
 
+import com.kbf.employee.exception.FileStorageException;
 import com.kbf.employee.service.FileStorageService;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -7,6 +8,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -16,6 +18,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 @Service
@@ -32,7 +36,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             Files.createDirectories(rootLocation.resolve("profiles"));
             Files.createDirectories(rootLocation.resolve("documents"));
         } catch (IOException e) {
-            throw new RuntimeException("Could not initialize storage", e);
+            throw new FileStorageException("Could not initialize storage", e);
         }
     }
 
@@ -40,10 +44,31 @@ public class FileStorageServiceImpl implements FileStorageService {
     public String store(MultipartFile file, String subDirectory) {
         try {
             if (file.isEmpty()) {
-                throw new RuntimeException("Failed to store empty file");
+                throw new FileStorageException("Failed to store empty file");
             }
 
-            String filename = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            // Validate file name
+            String originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+            if (originalFilename.contains("..")) {
+                throw new FileStorageException("Cannot store file with relative path outside current directory");
+            }
+
+            // Validate file size (max 5MB)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                throw new FileStorageException("File size exceeds 5MB limit");
+            }
+
+            // Validate file extension
+            String fileExtension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+            if (subDirectory.equals("profiles") && !List.of("jpg", "jpeg", "png", "gif").contains(fileExtension)) {
+                throw new FileStorageException("Only image files (JPG, JPEG, PNG, GIF) are allowed for profile pictures");
+            }
+
+            if (subDirectory.equals("documents") && !List.of("pdf", "doc", "docx").contains(fileExtension)) {
+                throw new FileStorageException("Only PDF and Word documents are allowed");
+            }
+
+            String filename = System.currentTimeMillis() + "_" + originalFilename;
             Path destinationFile = Paths.get(uploadDir)
                     .resolve(subDirectory)
                     .resolve(filename)
@@ -52,7 +77,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
             // Security check
             if (!destinationFile.getParent().equals(Paths.get(uploadDir).resolve(subDirectory).toAbsolutePath())) {
-                throw new RuntimeException("Cannot store file outside current directory");
+                throw new FileStorageException("Cannot store file outside current directory");
             }
 
             try (InputStream inputStream = file.getInputStream()) {
@@ -60,7 +85,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             }
             return filename;
         } catch (IOException e) {
-            throw new RuntimeException("Failed to store file", e);
+            throw new FileStorageException("Failed to store file", e);
         }
     }
 
@@ -88,10 +113,10 @@ public class FileStorageServiceImpl implements FileStorageService {
             if (resource.exists() || resource.isReadable()) {
                 return resource;
             } else {
-                throw new RuntimeException("Could not read file: " + filename);
+                throw new FileStorageException("Could not read file: " + filename);
             }
         } catch (MalformedURLException e) {
-            throw new RuntimeException("Could not read file: " + filename, e);
+            throw new FileStorageException("Could not read file: " + filename, e);
         }
     }
 

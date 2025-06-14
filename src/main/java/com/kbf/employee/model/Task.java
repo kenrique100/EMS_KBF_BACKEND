@@ -7,6 +7,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Date;
 
 @Entity
 @Data
@@ -19,33 +20,35 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String title;
 
+    @Column(length = 500)
     private String description;
 
     @Column(nullable = false)
-    private LocalDateTime deadline;
-
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    private TaskStatus status = TaskStatus.PENDING;
+    @Temporal(TemporalType.DATE)
+    private Date deadline;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private TaskStatus status;
+
+    @Column(name = "expected_hours")
+    private Integer expectedHours;
+
+    @Column(name = "actual_hours")
+    private Double actualHours;
 
     @Column(name = "start_time")
     private LocalDateTime startTime;
 
     @Column(name = "stop_time")
     private LocalDateTime stopTime;
-
-    @Column(name = "expected_hours")
-    private Duration expectedHours;
-
-    @Column(name = "actual_hours")
-    private Duration actualHours;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -62,7 +65,7 @@ public class Task {
     @PreUpdate
     public void calculateActualHours() {
         if (startTime != null && stopTime != null) {
-            this.actualHours = Duration.between(startTime, stopTime);
+            this.actualHours = Duration.between(startTime, stopTime).toMinutes() / 60.0;
         }
     }
 }

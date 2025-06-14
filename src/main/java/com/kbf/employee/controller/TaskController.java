@@ -1,8 +1,8 @@
+// TaskController.java
 package com.kbf.employee.controller;
 
-import com.kbf.employee.dto.TaskActionDTO;
 import com.kbf.employee.dto.TaskDTO;
-import com.kbf.employee.model.Task;
+import com.kbf.employee.dto.TaskActionDTO;
 import com.kbf.employee.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -36,14 +35,13 @@ public class TaskController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TaskDTO> createTask(@Valid @RequestBody TaskDTO taskDTO) {
-        TaskDTO created = taskService.createTask(taskDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.ok(taskService.createTask(taskDTO));
     }
 
     @Operation(summary = "Get all tasks")
     @ApiResponse(responseCode = "200", description = "List of all tasks")
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<TaskDTO>> getAllTasks() {
         return ResponseEntity.ok(taskService.getAllTasks());
     }
@@ -54,56 +52,20 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @GetMapping("/employee/{employeeId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<TaskDTO>> getTasksForEmployee(@PathVariable Long employeeId) {
         return ResponseEntity.ok(taskService.getAllTasksForEmployee(employeeId));
     }
 
-    @Operation(summary = "Get task by ID")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Task found"),
-            @ApiResponse(responseCode = "404", description = "Task not found")
-    })
-    @GetMapping("/{taskId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<TaskDTO> getTaskById(@PathVariable Long taskId) {
-        return ResponseEntity.ok(taskService.getTaskById(taskId));
-    }
-
-    @Operation(summary = "Update task status (start, stop, complete)")
+    @Operation(summary = "Update task status")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Task status updated successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid action or state"),
+            @ApiResponse(responseCode = "400", description = "Invalid action"),
             @ApiResponse(responseCode = "404", description = "Task not found")
     })
     @PutMapping("/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<TaskDTO> updateTaskStatus(@Valid @RequestBody TaskActionDTO actionDTO) {
-        return ResponseEntity.ok(taskService.updateTaskStatus(actionDTO));
-    }
-
-    @Operation(summary = "Delete a task")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Task deleted successfully"),
-            @ApiResponse(responseCode = "404", description = "Task not found")
-    })
-    @DeleteMapping("/{taskId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteTask(@PathVariable Long taskId) {
-        taskService.deleteTask(taskId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Operation(summary = "Get tasks by status for an employee")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "List of tasks retrieved successfully"),
-            @ApiResponse(responseCode = "404", description = "Employee not found")
-    })
-    @GetMapping("/employee/{employeeId}/status/{status}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<TaskDTO>> getTasksByStatusForEmployee(
-            @PathVariable Long employeeId,
-            @PathVariable Task.TaskStatus status) {
-        return ResponseEntity.ok(taskService.getTasksByStatusForEmployee(employeeId, status));
+        return ResponseEntity.ok(taskService.updateTaskStatus(actionDTO.getTaskId(), actionDTO.getAction()));
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -172,19 +173,25 @@ public class EmployeeService {
         employeeRepository.delete(employee);
     }
 
-    public EmployeeProfileDTO getEmployeeProfile(Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+    public EmployeeProfileDTO getEmployeeProfile(Long id) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
 
         return EmployeeProfileDTO.builder()
                 .id(employee.getId())
                 .username(employee.getUsername())
+                .name(employee.getName())
                 .email(employee.getEmail())
                 .phoneNumber(employee.getPhoneNumber())
                 .department(employee.getDepartment())
-                .profilePictureUrl(employee.getProfilePicturePath())
-                .salaryPayments(salaryService.getSalaryPaymentsForEmployee(employeeId))
-                .tasks(taskService.getAllTasksForEmployee(employeeId))
+                .dateOfEmployment(employee.getDateOfEmployment())
+                .status(employee.getStatus())
+                .profilePicturePath(employee.getProfilePicturePath())
+                .documentPath(employee.getDocumentPath())
+                .salaryPayments(salaryService.getSalaryPaymentsForEmployee(id))
+                .tasks(taskService.getAllTasksForEmployee(id))
+                .createdAt(LocalDate.from(employee.getCreatedAt()))
+                .updatedAt(LocalDate.from(employee.getUpdatedAt()))
                 .build();
     }
 

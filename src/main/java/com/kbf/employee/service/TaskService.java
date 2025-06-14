@@ -1,7 +1,7 @@
+// TaskService.java
 package com.kbf.employee.service;
 
 import com.kbf.employee.dto.TaskDTO;
-import com.kbf.employee.dto.TaskActionDTO;
 import com.kbf.employee.exception.ResourceNotFoundException;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.model.Task;
@@ -34,11 +34,8 @@ public class TaskService {
                 .deadline(taskDTO.getDeadline())
                 .employee(employee)
                 .status(Task.TaskStatus.PENDING)
+                .expectedHours(taskDTO.getExpectedHours())
                 .build();
-
-        if (taskDTO.getExpectedHours() != null) {
-            task.setExpectedHours(Duration.ofHours(taskDTO.getExpectedHours()));
-        }
 
         Task savedTask = taskRepository.save(task);
         return convertToDTO(savedTask);
@@ -59,92 +56,60 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
-    public List<TaskDTO> getTasksByStatusForEmployee(Long employeeId, Task.TaskStatus status) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
-
-        return taskRepository.findByEmployeeAndStatus(employee, status).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    public TaskDTO getTaskById(Long taskId) {
+    @Transactional
+    public TaskDTO updateTaskStatus(Long taskId, String action) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
-        return convertToDTO(task);
-    }
 
-    @Transactional
-    public TaskDTO updateTaskStatus(TaskActionDTO actionDTO) {
-        Task task = taskRepository.findById(actionDTO.getTaskId())
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + actionDTO.getTaskId()));
-
-        switch (actionDTO.getAction().toUpperCase()) {
+        switch (action) {
             case "START":
                 if (task.getStatus() != Task.TaskStatus.PENDING) {
                     throw new IllegalStateException("Task can only be started from PENDING status");
                 }
-                task.setStartTime(LocalDateTime.now());
                 task.setStatus(Task.TaskStatus.IN_PROGRESS);
+                task.setStartTime(LocalDateTime.now());
                 break;
             case "STOP":
                 if (task.getStatus() != Task.TaskStatus.IN_PROGRESS) {
                     throw new IllegalStateException("Task can only be stopped when IN_PROGRESS");
                 }
                 task.setStopTime(LocalDateTime.now());
+                if (task.getStartTime() != null) {
+                    Duration duration = Duration.between(task.getStartTime(), task.getStopTime());
+                    task.setActualHours(duration.toHours() + (duration.toMinutesPart() / 60.0));
+                }
                 break;
             case "COMPLETE":
-                if (task.getStatus() != Task.TaskStatus.IN_PROGRESS) {
-                    throw new IllegalStateException("Task can only be completed when IN_PROGRESS");
-                }
-                if (task.getStopTime() == null) {
-                    task.setStopTime(LocalDateTime.now());
-                }
-                if (task.getExpectedHours() != null && task.getActualHours() != null) {
-                    if (task.getActualHours().compareTo(task.getExpectedHours()) < 0) {
-                        task.setStatus(Task.TaskStatus.UNCOMPLETED);
-                    } else {
-                        task.setStatus(Task.TaskStatus.COMPLETED);
-                    }
-                } else {
-                    task.setStatus(Task.TaskStatus.COMPLETED);
+                task.setStatus(Task.TaskStatus.COMPLETED);
+                task.setStopTime(LocalDateTime.now());
+                if (task.getStartTime() != null) {
+                    Duration duration = Duration.between(task.getStartTime(), task.getStopTime());
+                    task.setActualHours(duration.toHours() + (duration.toMinutesPart() / 60.0));
                 }
                 break;
             default:
-                throw new IllegalArgumentException("Invalid action: " + actionDTO.getAction());
+                throw new IllegalArgumentException("Invalid action: " + action);
         }
 
         Task updatedTask = taskRepository.save(task);
         return convertToDTO(updatedTask);
     }
 
-    @Transactional
-    public void deleteTask(Long taskId) {
-        if (!taskRepository.existsById(taskId)) {
-            throw new ResourceNotFoundException("Task not found with id: " + taskId);
-        }
-        taskRepository.deleteById(taskId);
-    }
-
     private TaskDTO convertToDTO(Task task) {
-        TaskDTO dto = new TaskDTO();
-        dto.setId(task.getId());
-        dto.setTitle(task.getTitle());
-        dto.setDescription(task.getDescription());
-        dto.setDeadline(task.getDeadline());
-        dto.setEmployeeId(task.getEmployee().getId());
-        dto.setStatus(task.getStatus());
-        dto.setStartTime(task.getStartTime());
-        dto.setStopTime(task.getStopTime());
-
-        if (task.getExpectedHours() != null) {
-            dto.setExpectedHours(task.getExpectedHours().toHours());
-        }
-
-        if (task.getActualHours() != null) {
-            dto.setActualHours(task.getActualHours().toMinutes() / 60.0);
-        }
-
-        return dto;
+        return TaskDTO.builder()
+                .id(task.getId())
+                .title(task.getTitle())
+                .description(task.getDescription())
+                .deadline(task.getDeadline())
+                .employeeId(task.getEmployee().getId())
+                .employeeName(task.getEmployee().getName())
+                .status(task.getStatus())
+                .expectedHours(task.getExpectedHours())
+                .actualHours(task.getActualHours())
+                .startTime(task.getStartTime())
+                .stopTime(task.getStopTime())
+                .createdAt(task.getCreatedAt())
+                .updatedAt(task.getUpdatedAt())
+                .build();
     }
 }

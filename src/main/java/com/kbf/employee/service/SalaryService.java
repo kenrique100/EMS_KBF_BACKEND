@@ -78,8 +78,10 @@ public class SalaryService {
                 .amount(payment.getAmount())
                 .paymentDate(payment.getPaymentDate())
                 .employeeId(payment.getEmployee().getId())
+                .employeeName(payment.getEmployee().getName())
                 .status(payment.getStatus())
                 .paymentReference(payment.getPaymentReference())
+                .createdAt(payment.getCreatedAt())
                 .build();
     }
 }

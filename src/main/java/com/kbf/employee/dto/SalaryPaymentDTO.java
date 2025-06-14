@@ -10,6 +10,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -32,9 +33,15 @@ public class SalaryPaymentDTO {
     @Schema(description = "ID of the employee receiving this payment", example = "1")
     private Long employeeId;
 
+    @Schema(description = "Employee name", example = "John Doe", accessMode = Schema.AccessMode.READ_ONLY)
+    private String employeeName;
+
     @Schema(description = "Payment status", example = "PROCESSED", accessMode = Schema.AccessMode.READ_ONLY)
     private SalaryPayment.PaymentStatus status;
 
     @Schema(description = "Unique payment reference", example = "PAY-2023-06-001")
     private String paymentReference;
+
+    @Schema(description = "Creation timestamp", example = "2023-06-30T10:15:30", accessMode = Schema.AccessMode.READ_ONLY)
+    private LocalDateTime createdAt;
 }
