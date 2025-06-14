@@ -33,7 +33,7 @@ public class Employee {
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private Department department;
 
     @Column(nullable = false)
@@ -66,6 +66,10 @@ public class Employee {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public void addRole(Role role) {
+        this.roles.add(role);
+    }
 
     public enum EmployeeStatus {
         ACTIVE, INACTIVE, ON_LEAVE, TERMINATED

@@ -1,63 +1,56 @@
 package com.kbf.employee.runner;
 
+import com.kbf.employee.model.Department;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.model.Role;
+import com.kbf.employee.model.Role.RoleName;
 import com.kbf.employee.repository.EmployeeRepository;
 import com.kbf.employee.repository.RoleRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.Set;
 
-@Slf4j
-@Component
+@Configuration
 @RequiredArgsConstructor
-public class DatabaseInitializer implements CommandLineRunner {
+public class DatabaseInitializer {
 
     private final EmployeeRepository employeeRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Override
-    public void run(String... args) throws Exception {
-        initializeRoles();
-        initializeAdminUser();
-    }
+    @PostConstruct
+    public void init() {
+        // Ensure ROLE_ADMIN exists and retrieve it
+        Role adminRole = roleRepository.findByName(RoleName.ROLE_ADMIN)
+                .orElseGet(() -> roleRepository.save(new Role(RoleName.ROLE_ADMIN)));
 
-    private void initializeRoles() {
-        if (roleRepository.count() == 0) {
-            log.info("Initializing roles in database");
-            Role adminRole = new Role(Role.RoleName.ROLE_ADMIN);
-            Role userRole = new Role(Role.RoleName.ROLE_USER);
-            roleRepository.save(adminRole);
-            roleRepository.save(userRole);
-            log.info("Roles initialized successfully");
-        }
-    }
+        // Ensure ROLE_USER exists
+        roleRepository.findByName(RoleName.ROLE_USER)
+                .orElseGet(() -> roleRepository.save(new Role(RoleName.ROLE_USER)));
 
-    private void initializeAdminUser() {
-        String adminUsername = "admin";
-        if (!employeeRepository.existsByUsername(adminUsername)) {
-            log.info("Creating initial admin user");
-
-            Role adminRole = roleRepository.findByName(Role.RoleName.ROLE_ADMIN)
-                    .orElseThrow(() -> new RuntimeException("Admin role not found"));
+        // Create admin user if it doesn't exist
+        if (!employeeRepository.existsByUsername("admin")) {
+            Set<Role> adminRoles = new HashSet<>();
+            adminRoles.add(adminRole);
 
             Employee admin = Employee.builder()
-                    .username(adminUsername)
-                    .name("Administrator")
+                    .username("admin")
                     .password(passwordEncoder.encode("admin123"))
+                    .name("System Administrator")
+                    .email("ngwakenri2016@gmail.com.com")
+                    .phoneNumber("+237670466987")
                     .dateOfEmployment(LocalDate.now())
+                    .department(Department.ADMINISTRATION)
                     .status(Employee.EmployeeStatus.ACTIVE)
-                    .roles(Set.of(adminRole))
+                    .roles(adminRoles)
                     .build();
 
             employeeRepository.save(admin);
-            log.info("Admin user created successfully with username: {}", adminUsername);
         }
     }
 }

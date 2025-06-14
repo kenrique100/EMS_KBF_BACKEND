@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -26,6 +27,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class WebSecurityConfig {
 
@@ -67,10 +69,10 @@ public class WebSecurityConfig {
                                 "/api/profile/**",
                                 "/api/my-tasks/**",
                                 "/api/my-salary/**"
-                        ).authenticated()
+                        ).hasAnyRole("ADMIN", "USER")
 
                         // Any other request
-                        .anyRequest().permitAll()
+                        .anyRequest().authenticated()
                 );
 
         // Add JWT authentication filter

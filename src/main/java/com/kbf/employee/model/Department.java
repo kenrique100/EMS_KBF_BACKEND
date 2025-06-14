@@ -1,6 +1,7 @@
 package com.kbf.employee.model;
 
 public enum Department {
+    ADMINISTRATION("Administration"),
     FISHERY("Fishery"),
     POULTRY("Poultry"),
     RABBITRY("Rabbitry"),
@@ -17,5 +18,9 @@ public enum Department {
 
     public String getDisplayName() {
         return displayName;
+    }
+    @Override
+    public String toString() {
+        return this.name();
     }
 }
