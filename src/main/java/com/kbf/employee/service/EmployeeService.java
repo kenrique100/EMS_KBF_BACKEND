@@ -2,6 +2,9 @@ package com.kbf.employee.service;
 
 import com.kbf.employee.dto.EmployeeDTO;
 import com.kbf.employee.dto.EmployeeProfileDTO;
+import com.kbf.employee.dto.SalaryPaymentDTO;
+import com.kbf.employee.dto.TaskDTO;
+import com.kbf.employee.exception.DuplicateResourceException;
 import com.kbf.employee.exception.ResourceNotFoundException;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.model.Role;
@@ -42,10 +45,10 @@ public class EmployeeService {
 
     private void validateEmployeeCreation(EmployeeDTO dto) {
         if (employeeRepository.existsByUsername(dto.getUsername())) {
-            throw new IllegalArgumentException("Username already exists");
+            throw new DuplicateResourceException("Username already exists");
         }
         if (employeeRepository.existsByEmail(dto.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
+            throw new DuplicateResourceException("Email already exists");
         }
     }
 
@@ -64,7 +67,7 @@ public class EmployeeService {
 
     private void setDefaultRole(Employee employee) {
         Role userRole = roleRepository.findByName(Role.RoleName.ROLE_USER)
-                .orElseThrow(() -> new RuntimeException("Default role not found"));
+                .orElseThrow(() -> new IllegalStateException("Default role not found"));
         employee.setRoles(Set.of(userRole));
     }
 
@@ -94,14 +97,16 @@ public class EmployeeService {
     }
 
     private void validateEmployeeUpdate(Employee employee, EmployeeDTO dto) {
-        if (!employee.getUsername().equals(dto.getUsername()) &&
-                employeeRepository.existsByUsername(dto.getUsername())) {
-            throw new IllegalArgumentException("Username already exists");
+        if (!employee.getUsername().equals(dto.getUsername())) {
+            if (employeeRepository.existsByUsername(dto.getUsername())) {
+                throw new DuplicateResourceException("Username already exists");
+            }
         }
 
-        if (!employee.getEmail().equals(dto.getEmail()) &&
-                employeeRepository.existsByEmail(dto.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
+        if (!employee.getEmail().equals(dto.getEmail())) {
+            if (employeeRepository.existsByEmail(dto.getEmail())) {
+                throw new DuplicateResourceException("Email already exists");
+            }
         }
     }
 
@@ -124,25 +129,27 @@ public class EmployeeService {
 
     private void handleFileUpdates(Employee employee, MultipartFile profilePicture, MultipartFile document) {
         if (profilePicture != null && !profilePicture.isEmpty()) {
-            if (employee.getProfilePicturePath() != null) {
-                String existingFile = employee.getProfilePicturePath().split("/")[1];
-                fileStorageService.delete(existingFile, "profiles");
-            }
+            deleteExistingFile(employee.getProfilePicturePath());
             String filename = fileStorageService.store(profilePicture, "profiles");
             employee.setProfilePicturePath("profiles/" + filename);
         }
 
         if (document != null && !document.isEmpty()) {
-            if (employee.getDocumentPath() != null) {
-                String existingFile = employee.getDocumentPath().split("/")[1];
-                fileStorageService.delete(existingFile, "documents");
-            }
+            deleteExistingFile(employee.getDocumentPath());
             String filename = fileStorageService.store(document, "documents");
             employee.setDocumentPath("documents/" + filename);
         }
     }
 
-    // Other methods remain unchanged...
+    private void deleteExistingFile(String filePath) {
+        if (filePath != null) {
+            String[] parts = filePath.split("/");
+            if (parts.length == 2) {
+                fileStorageService.delete(parts[1], parts[0]);
+            }
+        }
+    }
+
     public List<EmployeeDTO> getAllEmployees() {
         return employeeRepository.findAll().stream()
                 .map(this::convertToDTO)
@@ -160,22 +167,19 @@ public class EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
-        if (employee.getProfilePicturePath() != null) {
-            String filename = employee.getProfilePicturePath().split("/")[1];
-            fileStorageService.delete(filename, "profiles");
-        }
-
-        if (employee.getDocumentPath() != null) {
-            String filename = employee.getDocumentPath().split("/")[1];
-            fileStorageService.delete(filename, "documents");
-        }
+        deleteExistingFile(employee.getProfilePicturePath());
+        deleteExistingFile(employee.getDocumentPath());
 
         employeeRepository.delete(employee);
     }
 
+    @Transactional(readOnly = true)
     public EmployeeProfileDTO getEmployeeProfile(Long id) {
         Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
+
+        List<SalaryPaymentDTO> salaryPayments = salaryService.getSalaryPaymentsForEmployee(id);
+        List<TaskDTO> tasks = taskService.getAllTasksForEmployee(id);
 
         return EmployeeProfileDTO.builder()
                 .id(employee.getId())
@@ -188,10 +192,10 @@ public class EmployeeService {
                 .status(employee.getStatus())
                 .profilePicturePath(employee.getProfilePicturePath())
                 .documentPath(employee.getDocumentPath())
-                .salaryPayments(salaryService.getSalaryPaymentsForEmployee(id))
-                .tasks(taskService.getAllTasksForEmployee(id))
-                .createdAt(LocalDate.from(employee.getCreatedAt()))
-                .updatedAt(LocalDate.from(employee.getUpdatedAt()))
+                .salaryPayments(salaryPayments)
+                .tasks(tasks)
+                .createdAt(employee.getCreatedAt() != null ? LocalDate.from(employee.getCreatedAt()) : null)
+                .updatedAt(employee.getUpdatedAt() != null ? LocalDate.from(employee.getUpdatedAt()) : null)
                 .build();
     }
 

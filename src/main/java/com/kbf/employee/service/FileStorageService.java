@@ -14,4 +14,5 @@ public interface FileStorageService {
     Resource loadAsResource(String filename, String subDirectory);
     void deleteAll();
     void delete(String filename, String subDirectory);
+    boolean fileExists(String filename, String subDirectory);
 }

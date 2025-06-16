@@ -1,6 +1,7 @@
 package com.kbf.employee.controller;
 
 import com.kbf.employee.dto.EmployeeDTO;
+import com.kbf.employee.exception.InvalidFileException;
 import com.kbf.employee.service.EmployeeService;
 import com.kbf.employee.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,7 +21,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Tag(name = "Employee", description = "Employee Management API")
@@ -34,16 +38,45 @@ public class EmployeeController {
     @Operation(summary = "Create a new employee")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Employee created successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid input")
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "409", description = "Employee already exists"),
+            @ApiResponse(responseCode = "415", description = "Unsupported media type")
     })
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<EmployeeDTO> createEmployee(
+    public ResponseEntity<?> createEmployee(
             @Valid @RequestPart("employee") EmployeeDTO employeeDTO,
             @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
             @RequestPart(value = "document", required = false) MultipartFile document) {
 
-        return ResponseEntity.ok(employeeService.createEmployee(employeeDTO, profilePicture, document));
+        try {
+            // Validate files before processing
+            if (profilePicture != null && !profilePicture.isEmpty()) {
+                validateFileContentType(profilePicture, "profilePicture");
+            }
+            if (document != null && !document.isEmpty()) {
+                validateFileContentType(document, "document");
+            }
+
+            EmployeeDTO createdEmployee = employeeService.createEmployee(employeeDTO, profilePicture, document);
+            return ResponseEntity.ok(createdEmployee);
+        } catch (InvalidFileException e) {
+            return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                    .body(Map.of(
+                            "timestamp", LocalDateTime.now(),
+                            "status", HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
+                            "error", "Unsupported Media Type",
+                            "message", e.getMessage(),
+                            "path", "/api/employees"
+                    ));
+        }
+    }
+
+    private void validateFileContentType(MultipartFile file, String fileType) throws InvalidFileException {
+        String contentType = file.getContentType();
+        if (contentType == null || contentType.equals("multipart/form-data")) {
+            throw new InvalidFileException("Invalid file content type for " + fileType + ". Received: " + contentType);
+        }
     }
 
     @Operation(summary = "Get all employees")
@@ -69,7 +102,8 @@ public class EmployeeController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Employee updated successfully"),
             @ApiResponse(responseCode = "404", description = "Employee not found"),
-            @ApiResponse(responseCode = "400", description = "Invalid input")
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "409", description = "Username or email already exists")
     })
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")

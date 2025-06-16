@@ -67,10 +67,6 @@ public class Employee {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public void addRole(Role role) {
-        this.roles.add(role);
-    }
-
     public enum EmployeeStatus {
         ACTIVE, INACTIVE, ON_LEAVE, TERMINATED
     }
