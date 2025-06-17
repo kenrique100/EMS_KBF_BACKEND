@@ -40,9 +40,9 @@ public class DatabaseInitializer {
 
             Employee admin = Employee.builder()
                     .username("admin")
-                    .password(passwordEncoder.encode("admin123"))
+                    .password(passwordEncoder.encode("Admin@123"))
                     .name("System Administrator")
-                    .email("ngwakenri2016@gmail.com.com")
+                    .email("ngwakenri2016@gmail.com")
                     .phoneNumber("+237670466987")
                     .dateOfEmployment(LocalDate.now())
                     .department(Department.ADMINISTRATION)
