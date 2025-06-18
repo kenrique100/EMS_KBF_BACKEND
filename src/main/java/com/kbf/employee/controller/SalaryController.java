@@ -77,4 +77,18 @@ public class SalaryController {
         salaryService.deleteSalaryPayment(paymentId);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "Update a salary payment")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Salary payment updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "404", description = "Salary payment not found")
+    })
+    @PatchMapping("/{paymentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SalaryPaymentDTO> updateSalaryPayment(
+            @PathVariable Long paymentId,
+            @RequestBody SalaryPaymentDTO salaryPaymentDTO) {
+        return ResponseEntity.ok(salaryService.updateSalaryPayment(paymentId, salaryPaymentDTO));
+    }
 }

@@ -95,6 +95,33 @@ public class TaskService {
         Task updatedTask = taskRepository.save(task);
         return convertToDTO(updatedTask);
     }
+    @Transactional
+    public TaskDTO updateTask(Long taskId, TaskDTO taskDTO) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+
+        // Update only the fields that are provided in the DTO
+        if (taskDTO.getTitle() != null) {
+            task.setTitle(taskDTO.getTitle());
+        }
+        if (taskDTO.getDescription() != null) {
+            task.setDescription(taskDTO.getDescription());
+        }
+        if (taskDTO.getDeadline() != null) {
+            task.setDeadline(taskDTO.getDeadline());
+        }
+        if (taskDTO.getExpectedHours() != null) {
+            task.setExpectedHours(taskDTO.getExpectedHours());
+        }
+        if (taskDTO.getEmployeeId() != null) {
+            Employee employee = employeeRepository.findById(taskDTO.getEmployeeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + taskDTO.getEmployeeId()));
+            task.setEmployee(employee);
+        }
+
+        Task updatedTask = taskRepository.save(task);
+        return convertToDTO(updatedTask);
+    }
 
     private TaskDTO convertToDTO(Task task) {
         return TaskDTO.builder()

@@ -8,7 +8,7 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 public class UserResponse {
-    private String id;
+    private Long id;
     private String username;
     private String name;
     private String email;

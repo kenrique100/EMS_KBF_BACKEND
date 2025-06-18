@@ -17,7 +17,6 @@ public class TaskDTO {
     @Schema(description = "Task ID", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    @NotBlank
     @Size(max = 100)
     @Schema(description = "Task title", example = "Complete project documentation")
     private String title;
@@ -26,12 +25,10 @@ public class TaskDTO {
     @Schema(description = "Task description", example = "Write detailed documentation for the new feature")
     private String description;
 
-    @NotNull
     @FutureOrPresent
     @Schema(description = "Task deadline", example = "2023-12-31")
     private Date deadline;
 
-    @NotNull
     @Schema(description = "ID of the employee assigned to this task", example = "1")
     private Long employeeId;
 

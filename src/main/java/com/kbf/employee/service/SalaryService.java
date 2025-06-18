@@ -61,6 +61,31 @@ public class SalaryService {
     }
 
     @Transactional
+    public SalaryPaymentDTO updateSalaryPayment(Long paymentId, SalaryPaymentDTO salaryPaymentDTO) {
+        SalaryPayment existingPayment = salaryPaymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Salary payment not found with id: " + paymentId));
+
+        // Update only the fields that are provided in the DTO
+        if (salaryPaymentDTO.getAmount() != null) {
+            existingPayment.setAmount(salaryPaymentDTO.getAmount());
+        }
+        if (salaryPaymentDTO.getPaymentDate() != null) {
+            existingPayment.setPaymentDate(salaryPaymentDTO.getPaymentDate());
+        }
+        if (salaryPaymentDTO.getEmployeeId() != null) {
+            Employee employee = employeeRepository.findById(salaryPaymentDTO.getEmployeeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + salaryPaymentDTO.getEmployeeId()));
+            existingPayment.setEmployee(employee);
+        }
+        if (salaryPaymentDTO.getPaymentReference() != null) {
+            existingPayment.setPaymentReference(salaryPaymentDTO.getPaymentReference());
+        }
+
+        SalaryPayment updatedPayment = salaryPaymentRepository.save(existingPayment);
+        return convertToDTO(updatedPayment);
+    }
+
+    @Transactional
     public void deleteSalaryPayment(Long paymentId) {
         if (!salaryPaymentRepository.existsById(paymentId)) {
             throw new ResourceNotFoundException("Salary payment not found with id: " + paymentId);

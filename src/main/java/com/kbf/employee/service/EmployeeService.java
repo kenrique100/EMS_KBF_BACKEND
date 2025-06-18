@@ -1,9 +1,6 @@
 package com.kbf.employee.service;
 
-import com.kbf.employee.dto.EmployeeDTO;
-import com.kbf.employee.dto.EmployeeProfileDTO;
-import com.kbf.employee.dto.SalaryPaymentDTO;
-import com.kbf.employee.dto.TaskDTO;
+import com.kbf.employee.dto.*;
 import com.kbf.employee.exception.DuplicateResourceException;
 import com.kbf.employee.exception.ResourceNotFoundException;
 import com.kbf.employee.model.Employee;
@@ -84,7 +81,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    public EmployeeDTO updateEmployee(Long id, EmployeeDTO dto, MultipartFile profilePicture, MultipartFile document) {
+    public EmployeeDTO updateEmployee(Long id, EmployeeUpdateDTO dto, MultipartFile profilePicture, MultipartFile document) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
@@ -96,32 +93,42 @@ public class EmployeeService {
         return convertToDTO(updatedEmployee);
     }
 
-    private void validateEmployeeUpdate(Employee employee, EmployeeDTO dto) {
-        if (!employee.getUsername().equals(dto.getUsername())) {
+    private void validateEmployeeUpdate(Employee employee, EmployeeUpdateDTO dto) {
+        if (dto.getUsername() != null && !employee.getUsername().equals(dto.getUsername())) {
             if (employeeRepository.existsByUsername(dto.getUsername())) {
                 throw new DuplicateResourceException("Username already exists");
             }
         }
 
-        if (!employee.getEmail().equals(dto.getEmail())) {
+        if (dto.getEmail() != null && !employee.getEmail().equals(dto.getEmail())) {
             if (employeeRepository.existsByEmail(dto.getEmail())) {
                 throw new DuplicateResourceException("Email already exists");
             }
         }
     }
 
-    private void updateEmployeeFields(Employee employee, EmployeeDTO dto) {
-        employee.setUsername(dto.getUsername());
-        employee.setName(dto.getName());
-        employee.setEmail(dto.getEmail());
-        employee.setPhoneNumber(dto.getPhoneNumber());
-        employee.setDepartment(dto.getDepartment());
-        employee.setDateOfEmployment(dto.getDateOfEmployment());
-
+    private void updateEmployeeFields(Employee employee, EmployeeUpdateDTO dto) {
+        if (dto.getUsername() != null) {
+            employee.setUsername(dto.getUsername());
+        }
+        if (dto.getName() != null) {
+            employee.setName(dto.getName());
+        }
+        if (dto.getEmail() != null) {
+            employee.setEmail(dto.getEmail());
+        }
+        if (dto.getPhoneNumber() != null) {
+            employee.setPhoneNumber(dto.getPhoneNumber());
+        }
+        if (dto.getDepartment() != null) {
+            employee.setDepartment(dto.getDepartment());
+        }
+        if (dto.getDateOfEmployment() != null) {
+            employee.setDateOfEmployment(dto.getDateOfEmployment());
+        }
         if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
             employee.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
-
         if (dto.getStatus() != null) {
             employee.setStatus(dto.getStatus());
         }
@@ -139,6 +146,82 @@ public class EmployeeService {
             String filename = fileStorageService.store(document, "documents");
             employee.setDocumentPath("documents/" + filename);
         }
+    }
+
+    @Transactional
+    public EmployeeDTO updateProfilePicture(Long id, MultipartFile profilePicture) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
+
+        try {
+            // Delete existing file if present
+            if (employee.getProfilePicturePath() != null) {
+                fileStorageService.delete(
+                        employee.getProfilePicturePath().split("/")[1],
+                        employee.getProfilePicturePath().split("/")[0]
+                );
+            }
+
+            // Store new file
+            String filename = fileStorageService.store(profilePicture, "profiles");
+            employee.setProfilePicturePath("profiles/" + filename);
+
+            return convertToDTO(employeeRepository.save(employee));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to update profile picture", e);
+        }
+    }
+
+    @Transactional
+    public EmployeeDTO updateDocument(Long id, MultipartFile document) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
+
+        try {
+            // Delete existing file if present
+            if (employee.getDocumentPath() != null) {
+                fileStorageService.delete(
+                        employee.getDocumentPath().split("/")[1],
+                        employee.getDocumentPath().split("/")[0]
+                );
+            }
+
+            // Store new file
+            String filename = fileStorageService.store(document, "documents");
+            employee.setDocumentPath("documents/" + filename);
+
+            return convertToDTO(employeeRepository.save(employee));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to update document", e);
+        }
+    }
+
+    @Transactional
+    public void deleteProfilePicture(Long id) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
+
+        if (employee.getProfilePicturePath() == null) {
+            throw new ResourceNotFoundException("No profile picture exists for employee with ID: " + id);
+        }
+
+        deleteExistingFile(employee.getProfilePicturePath());
+        employee.setProfilePicturePath(null);
+        employeeRepository.save(employee);
+    }
+
+    @Transactional
+    public void deleteDocument(Long id) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
+
+        if (employee.getDocumentPath() == null) {
+            throw new ResourceNotFoundException("No document exists for employee with ID: " + id);
+        }
+
+        deleteExistingFile(employee.getDocumentPath());
+        employee.setDocumentPath(null);
+        employeeRepository.save(employee);
     }
 
     private void deleteExistingFile(String filePath) {
