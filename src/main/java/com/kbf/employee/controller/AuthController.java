@@ -91,7 +91,7 @@ public class AuthController {
 
     private UserResponse createUserResponse(Employee employee) {
         return new UserResponse(
-                employee.getId().toString(),
+                employee.getId(),
                 employee.getUsername(),
                 employee.getName(),
                 employee.getEmail(),
