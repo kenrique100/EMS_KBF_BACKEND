@@ -1,5 +1,6 @@
 package com.kbf.employee.model;
 
+
 public enum Department {
     ADMINISTRATION("Administration"),
     FISHERY("Fishery"),

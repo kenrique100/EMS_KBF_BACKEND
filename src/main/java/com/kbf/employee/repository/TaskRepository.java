@@ -10,5 +10,5 @@ import java.util.List;
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByEmployee(Employee employee);
-    List<Task> findByEmployeeAndStatus(Employee employee, Task.TaskStatus status);
+
 }
