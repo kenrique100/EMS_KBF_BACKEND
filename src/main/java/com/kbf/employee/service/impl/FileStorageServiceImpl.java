@@ -44,7 +44,10 @@ public class FileStorageServiceImpl implements FileStorageService {
     public String store(MultipartFile file, String subDirectory) {
         try {
             String filename = generateUniqueFilename(file.getOriginalFilename());
-            Path destination = getDestinationPath(subDirectory, filename);
+            Path destination = Paths.get(uploadDir)
+                    .resolve(subDirectory)
+                    .resolve(filename)
+                    .normalize();
 
             Files.createDirectories(destination.getParent());
             try (InputStream inputStream = file.getInputStream()) {
@@ -72,15 +75,10 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public Path load(String filename, String subDirectory) {
-        Path filePath = Paths.get(uploadDir).resolve(subDirectory).resolve(filename).normalize();
-
-        // Security check to prevent directory traversal
-        Path rootPath = Paths.get(uploadDir).resolve(subDirectory).normalize();
-        if (!filePath.getParent().equals(rootPath)) {
-            throw new FileStorageException("Cannot access file outside of designated directory");
-        }
-
-        return filePath;
+        return Paths.get(uploadDir)
+                .resolve(subDirectory)
+                .resolve(filename)
+                .normalize();
     }
 
     @Override
@@ -103,7 +101,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     public void deleteAll() {
         try {
             FileSystemUtils.deleteRecursively(Paths.get(uploadDir));
-            init(); // Reinitialize the directories
+            init();
         } catch (IOException e) {
             throw new FileStorageException("Failed to delete all files", e);
         }
@@ -112,7 +110,11 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public void delete(String filename, String subDirectory) {
         try {
-            Path file = load(filename, subDirectory);
+            Path file = Paths.get(uploadDir)
+                    .resolve(subDirectory)
+                    .resolve(filename)
+                    .normalize();
+
             if (!Files.deleteIfExists(file)) {
                 throw new FileStorageException("File not found: " + filename);
             }
@@ -129,22 +131,6 @@ public class FileStorageServiceImpl implements FileStorageService {
         } catch (FileStorageException e) {
             return false;
         }
-    }
-
-    private Path getDestinationPath(String subDirectory, String filename) {
-        Path destinationFile = Paths.get(uploadDir)
-                .resolve(subDirectory)
-                .resolve(filename)
-                .normalize()
-                .toAbsolutePath();
-
-        // Security check to prevent directory traversal
-        Path rootPath = Paths.get(uploadDir).resolve(subDirectory).normalize().toAbsolutePath();
-        if (!destinationFile.getParent().equals(rootPath)) {
-            throw new FileStorageException("Cannot store file outside of designated directory");
-        }
-
-        return destinationFile;
     }
 
     private String generateUniqueFilename(String originalFilename) {

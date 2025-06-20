@@ -8,7 +8,6 @@ import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
 import lombok.Builder;
 import lombok.Data;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
@@ -45,12 +44,6 @@ public class EmployeeUpdateDTO {
 
     @Schema(description = "Password for the employee account", example = "securePassword123")
     private String password;
-
-    @Schema(description = "Profile picture file")
-    private transient MultipartFile profilePicture;
-
-    @Schema(description = "Document file (CV, certificates, etc.)")
-    private transient MultipartFile document;
 
     @Schema(description = "Employee status", example = "ACTIVE")
     private Employee.EmployeeStatus status;

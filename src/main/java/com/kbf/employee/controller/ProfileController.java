@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,8 +31,8 @@ public class ProfileController {
             @ApiResponse(responseCode = "404", description = "Profile not found")
     })
     @GetMapping
-    public ResponseEntity<EmployeeProfileDTO> getMyProfile(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        EmployeeProfileDTO profile = employeeService.getEmployeeProfile(userPrincipal.getId());
-        return ResponseEntity.ok(profile);
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<EmployeeProfileDTO> getProfile(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(employeeService.getEmployeeProfile(userPrincipal.getId()));
     }
 }

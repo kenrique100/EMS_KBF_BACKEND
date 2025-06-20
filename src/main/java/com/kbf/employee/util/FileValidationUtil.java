@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.List;
 
 public class FileValidationUtil {
-
     private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList(
             "image/jpeg",
             "image/jpg",
@@ -22,13 +21,15 @@ public class FileValidationUtil {
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
 
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    public static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
     public static void validateImageFile(MultipartFile file) throws InvalidFileException {
+        if (file == null || file.isEmpty()) return;
         validateFile(file, "image");
     }
 
     public static void validateDocumentFile(MultipartFile file) throws InvalidFileException {
+        if (file == null || file.isEmpty()) return;
         validateFile(file, "document");
     }
 

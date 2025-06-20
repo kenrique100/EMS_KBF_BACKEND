@@ -12,22 +12,19 @@ import java.util.stream.Collectors;
 
 @Getter
 public class UserPrincipal implements UserDetails {
-
+    private final Employee employee;
     private final Long id;
     private final String username;
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities;
-    @Getter
-    private final Employee employee; // Add Employee field
 
-    public UserPrincipal(Long id, String username, String password,
-                         Collection<? extends GrantedAuthority> authorities,
-                         Employee employee) { // Add Employee parameter
+    public UserPrincipal(Employee employee, Long id, String username, String password,
+                         Collection<? extends GrantedAuthority> authorities) {
+        this.employee = employee;
         this.id = id;
         this.username = username;
         this.password = password;
         this.authorities = authorities;
-        this.employee = employee; // Initialize employee
     }
 
     public static UserPrincipal create(Employee employee) {
@@ -36,12 +33,17 @@ public class UserPrincipal implements UserDetails {
                 .collect(Collectors.toSet());
 
         return new UserPrincipal(
+                employee,
                 employee.getId(),
                 employee.getUsername(),
                 employee.getPassword(),
-                authorities,
-                employee // Pass the employee object
+                authorities
         );
+    }
+
+    public boolean isAdmin() {
+        return authorities.stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
     }
 
     @Override
@@ -61,6 +63,6 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return employee.getStatus() == Employee.EmployeeStatus.ACTIVE;
     }
 }

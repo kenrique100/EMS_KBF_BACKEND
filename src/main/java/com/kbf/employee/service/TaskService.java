@@ -2,6 +2,7 @@
 package com.kbf.employee.service;
 
 import com.kbf.employee.dto.TaskDTO;
+import com.kbf.employee.exception.AccessDeniedException;
 import com.kbf.employee.exception.ResourceNotFoundException;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.model.Task;
@@ -58,11 +59,15 @@ public class TaskService {
     }
 
     @Transactional
-    public TaskDTO updateTaskStatus(Long taskId, String action) {
+    public TaskDTO updateTaskStatus(Long taskId, String action, Long currentUserId, boolean isAdmin) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
 
-        switch (action) {
+        if (!isAdmin && !task.getEmployee().getId().equals(currentUserId)) {
+            throw new AccessDeniedException("You don't have permission to modify this task");
+        }
+
+        switch (action.toUpperCase()) {
             case "START":
                 if (task.getStatus() != Task.TaskStatus.PENDING) {
                     throw new IllegalStateException("Task can only be started from PENDING status");
@@ -92,9 +97,9 @@ public class TaskService {
                 throw new IllegalArgumentException("Invalid action: " + action);
         }
 
-        Task updatedTask = taskRepository.save(task);
-        return convertToDTO(updatedTask);
+        return convertToDTO(taskRepository.save(task));
     }
+
     @Transactional
     public TaskDTO updateTask(Long taskId, TaskDTO taskDTO) {
         Task task = taskRepository.findById(taskId)

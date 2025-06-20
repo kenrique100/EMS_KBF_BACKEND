@@ -3,6 +3,7 @@ package com.kbf.employee.controller;
 
 import com.kbf.employee.dto.TaskDTO;
 import com.kbf.employee.dto.TaskActionDTO;
+import com.kbf.employee.security.UserPrincipal;
 import com.kbf.employee.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -13,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -49,10 +51,11 @@ public class TaskController {
     @Operation(summary = "Get all tasks for an employee")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of tasks retrieved successfully"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @GetMapping("/employee/{employeeId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN') or @employeeSecurity.isOwner(authentication, #employeeId)")
     public ResponseEntity<List<TaskDTO>> getTasksForEmployee(@PathVariable Long employeeId) {
         return ResponseEntity.ok(taskService.getAllTasksForEmployee(employeeId));
     }
@@ -61,12 +64,21 @@ public class TaskController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Task status updated successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid action"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
             @ApiResponse(responseCode = "404", description = "Task not found")
     })
     @PutMapping("/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<TaskDTO> updateTaskStatus(@Valid @RequestBody TaskActionDTO actionDTO) {
-        return ResponseEntity.ok(taskService.updateTaskStatus(actionDTO.getTaskId(), actionDTO.getAction()));
+    public ResponseEntity<TaskDTO> updateTaskStatus(
+            @Valid @RequestBody TaskActionDTO actionDTO,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        return ResponseEntity.ok(taskService.updateTaskStatus(
+                actionDTO.getTaskId(),
+                actionDTO.getAction(),
+                userPrincipal.getId(),
+                userPrincipal.isAdmin()
+        ));
     }
 
     @Operation(summary = "Delete a task")

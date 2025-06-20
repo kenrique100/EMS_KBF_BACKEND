@@ -39,7 +39,7 @@ public class SalaryController {
     @Operation(summary = "Get all salary payments")
     @ApiResponse(responseCode = "200", description = "List of all salary payments")
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<SalaryPaymentDTO>> getAllSalaryPayments() {
         return ResponseEntity.ok(salaryService.getAllSalaryPayments());
     }
@@ -47,10 +47,11 @@ public class SalaryController {
     @Operation(summary = "Get all salary payments for an employee")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of salary payments retrieved successfully"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @GetMapping("/employee/{employeeId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or @employeeSecurity.isOwner(authentication, #employeeId)")
     public ResponseEntity<List<SalaryPaymentDTO>> getSalaryPaymentsForEmployee(@PathVariable Long employeeId) {
         return ResponseEntity.ok(salaryService.getSalaryPaymentsForEmployee(employeeId));
     }
@@ -61,7 +62,7 @@ public class SalaryController {
             @ApiResponse(responseCode = "404", description = "Salary payment not found")
     })
     @GetMapping("/{paymentId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<SalaryPaymentDTO> getSalaryPaymentById(@PathVariable Long paymentId) {
         return ResponseEntity.ok(salaryService.getSalaryPaymentById(paymentId));
     }
@@ -91,4 +92,5 @@ public class SalaryController {
             @RequestBody SalaryPaymentDTO salaryPaymentDTO) {
         return ResponseEntity.ok(salaryService.updateSalaryPayment(paymentId, salaryPaymentDTO));
     }
+
 }

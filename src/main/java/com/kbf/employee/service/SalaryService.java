@@ -39,12 +39,14 @@ public class SalaryService {
         return convertToDTO(savedPayment);
     }
 
+    @Transactional(readOnly = true)
     public List<SalaryPaymentDTO> getAllSalaryPayments() {
         return salaryPaymentRepository.findAll().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<SalaryPaymentDTO> getSalaryPaymentsForEmployee(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
@@ -54,6 +56,7 @@ public class SalaryService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public SalaryPaymentDTO getSalaryPaymentById(Long paymentId) {
         SalaryPayment payment = salaryPaymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary payment not found with id: " + paymentId));
@@ -65,7 +68,6 @@ public class SalaryService {
         SalaryPayment existingPayment = salaryPaymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary payment not found with id: " + paymentId));
 
-        // Update only the fields that are provided in the DTO
         if (salaryPaymentDTO.getAmount() != null) {
             existingPayment.setAmount(salaryPaymentDTO.getAmount());
         }

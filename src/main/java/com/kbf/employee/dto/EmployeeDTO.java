@@ -10,7 +10,6 @@ import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
 import lombok.Builder;
 import lombok.Data;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
@@ -54,12 +53,6 @@ public class EmployeeDTO {
     @PastOrPresent
     @Schema(description = "Date when employee was hired", example = "2023-01-15")
     private LocalDate dateOfEmployment;
-
-    @Schema(description = "Profile picture file")
-    private transient MultipartFile profilePicture;
-
-    @Schema(description = "Document file (CV, certificates, etc.)")
-    private transient MultipartFile document;
 
     @Schema(description = "Employee status", example = "ACTIVE", accessMode = Schema.AccessMode.READ_ONLY)
     private Employee.EmployeeStatus status;
