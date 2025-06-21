@@ -109,26 +109,34 @@ public class JwtTokenProvider {
     public boolean validateToken(String token) {
         try {
             if (isTokenBlacklisted(token)) {
-                log.error("Token is blacklisted");
+                log.error("Token is blacklisted: {}", token);
                 return false;
             }
 
-            Jwts.parserBuilder()
+            log.debug("Validating token with key algorithm: {}", key.getAlgorithm());
+
+            Jws<Claims> claims = Jwts.parserBuilder()
                     .setSigningKey(key)
                     .setAllowedClockSkewSeconds(30)
                     .build()
                     .parseClaimsJws(token);
 
+            log.debug("Token validated successfully for user: {}", claims.getBody().getSubject());
             return true;
         } catch (ExpiredJwtException ex) {
+            log.error("Expired JWT token: {}", ex.getMessage());
             throw new JwtAuthenticationException("Expired JWT token", ex);
         } catch (UnsupportedJwtException ex) {
+            log.error("Unsupported JWT token: {}", ex.getMessage());
             throw new JwtAuthenticationException("Unsupported JWT token", ex);
         } catch (MalformedJwtException ex) {
+            log.error("Invalid JWT token: {}", ex.getMessage());
             throw new JwtAuthenticationException("Invalid JWT token", ex);
         } catch (SignatureException ex) {
+            log.error("Invalid JWT signature. Token: {}, Error: {}", token, ex.getMessage());
             throw new JwtAuthenticationException("Invalid JWT signature", ex);
         } catch (IllegalArgumentException ex) {
+            log.error("JWT claims string is empty: {}", ex.getMessage());
             throw new JwtAuthenticationException("JWT claims string is empty", ex);
         }
     }
