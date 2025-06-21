@@ -9,9 +9,9 @@ import com.kbf.employee.repository.RoleRepository;
 import com.kbf.employee.security.UserPrincipal;
 import com.kbf.employee.service.EmployeeService;
 import com.kbf.employee.service.FileStorageService;
-import com.kbf.employee.service.TaskService;
-import com.kbf.employee.service.SalaryService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,36 +20,47 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
-
     private final EmployeeRepository employeeRepository;
     private final FileStorageService fileStorageService;
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
-    private final TaskService taskService;
-    private final SalaryService salaryService;
 
     @Override
     @Transactional
     public EmployeeDTO createEmployee(EmployeeDTO dto, MultipartFile profilePicture, MultipartFile document) {
         validateEmployeeCreation(dto);
-        Employee employee = buildEmployeeFromDTO(dto);
-        setDefaultRole(employee);
+
+        String profilePath = storeFile(profilePicture, "profile");
+        String docPath = storeFile(document, "document");
 
         try {
-            handleFileUpload(profilePicture, "profile", employee::setProfilePicturePath, null);
-            handleFileUpload(document, "document", employee::setDocumentPath, null);
+            Employee employee = buildEmployeeFromDTO(dto);
+            employee.setProfilePicturePath(profilePath);
+            employee.setDocumentPath(docPath);
 
-            return convertToDTO(employeeRepository.save(employee));
+            setDefaultRole(employee);
+            Employee savedEmployee = employeeRepository.save(employee);
+
+            log.info("Created employee ID {} with profile: {}, document: {}",
+                    savedEmployee.getId(), profilePath, docPath);
+
+            return convertToDTO(savedEmployee);
         } catch (Exception e) {
-            cleanupFiles(employee);
+            if (profilePath != null) fileStorageService.delete(profilePath);
+            if (docPath != null) fileStorageService.delete(docPath);
             throw new RuntimeException("Failed to create employee: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    public Resource loadFile(String filePath) {
+        return fileStorageService.loadAsResource(filePath);
     }
 
     @Override
@@ -59,17 +70,55 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
         validateEmployeeUpdate(employee, dto);
-        updateEmployeeFields(employee, dto);
+
+        // Store new files first
+        String newProfilePath = null;
+        String newDocPath = null;
 
         try {
-            handleFileUpload(profilePicture, "profile", employee::setProfilePicturePath, employee.getProfilePicturePath());
-            handleFileUpload(document, "document", employee::setDocumentPath, employee.getDocumentPath());
+            if (profilePicture != null && !profilePicture.isEmpty()) {
+                newProfilePath = storeFile(profilePicture, "profile");
+            }
 
-            return convertToDTO(employeeRepository.save(employee));
+            if (document != null && !document.isEmpty()) {
+                newDocPath = storeFile(document, "document");
+            }
+
+            // Only delete old files after new files are successfully stored
+            if (newProfilePath != null) {
+                safeDeleteFile(employee.getProfilePicturePath());
+                employee.setProfilePicturePath(newProfilePath);
+            }
+
+            if (newDocPath != null) {
+                safeDeleteFile(employee.getDocumentPath());
+                employee.setDocumentPath(newDocPath);
+            }
+
+            updateEmployeeFields(employee, dto);
+            Employee updated = employeeRepository.save(employee);
+            log.info("Updated employee ID {} with profile: {}, document: {}",
+                    id, newProfilePath, newDocPath);
+            return convertToDTO(updated);
         } catch (Exception e) {
+            // Cleanup new files if update fails
+            if (newProfilePath != null) safeDeleteFile(newProfilePath);
+            if (newDocPath != null) safeDeleteFile(newDocPath);
             throw new RuntimeException("Failed to update employee: " + e.getMessage(), e);
         }
     }
+
+    private void safeDeleteFile(String filePath) {
+        try {
+            if (filePath != null && !filePath.isBlank()) {
+                fileStorageService.delete(filePath);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to delete file {}: {}", filePath, e.getMessage());
+            // Continue with update even if file deletion fails
+        }
+    }
+
 
     @Override
     public EmployeeProfileDTO getEmployeeProfile(Long id) {
@@ -96,8 +145,6 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .documentPath(employee.getDocumentPath())
                 .createdAt(employee.getCreatedAt().toLocalDate())
                 .updatedAt(employee.getUpdatedAt().toLocalDate())
-                .salaryPayments(salaryService.getSalaryPaymentsForEmployee(id))
-                .tasks(taskService.getAllTasksForEmployee(id))
                 .build();
     }
 
@@ -121,11 +168,17 @@ public class EmployeeServiceImpl implements EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
-        cleanupFiles(employee);
+        if (employee.getProfilePicturePath() != null) {
+            fileStorageService.delete(employee.getProfilePicturePath());
+        }
+        if (employee.getDocumentPath() != null) {
+            fileStorageService.delete(employee.getDocumentPath());
+        }
+
         employeeRepository.delete(employee);
+        log.info("Deleted employee ID: {}", id);
     }
 
-    // All private helper methods remain the same as in your original EmployeeService
     private void validateEmployeeCreation(EmployeeDTO dto) {
         if (employeeRepository.existsByUsername(dto.getUsername())) {
             throw new DuplicateResourceException("Username already exists");
@@ -195,33 +248,18 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
     }
 
-    private void handleFileUpload(
-            MultipartFile file,
-            String fileType,
-            Consumer<String> pathSetter,
-            String currentPath
-    ) {
+    private String storeFile(MultipartFile file, String fileType) {
         if (file != null && !file.isEmpty()) {
-            // Delete old file if exists
-            if (currentPath != null) {
-                String filename = currentPath.substring(currentPath.lastIndexOf("/") + 1);
-                fileStorageService.delete(filename, fileType + "s");
+            try {
+                String filename = fileStorageService.store(file);
+                log.debug("Stored {} file: {}", fileType, filename);
+                return filename;
+            } catch (Exception e) {
+                log.error("Failed to store {} file: {}", fileType, e.getMessage());
+                throw new FileStorageException("Failed to store " + fileType + " file");
             }
-            // Save new file
-            String filename = fileStorageService.store(file, fileType + "s");
-            pathSetter.accept(fileType + "s/" + filename);
         }
-    }
-
-    private void cleanupFiles(Employee employee) {
-        if (employee.getProfilePicturePath() != null) {
-            String filename = employee.getProfilePicturePath().split("/")[1];
-            fileStorageService.delete(filename, "profiles");
-        }
-        if (employee.getDocumentPath() != null) {
-            String filename = employee.getDocumentPath().split("/")[1];
-            fileStorageService.delete(filename, "documents");
-        }
+        return null;
     }
 
     private EmployeeDTO convertToDTO(Employee employee) {
@@ -234,6 +272,8 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .department(employee.getDepartment())
                 .dateOfEmployment(employee.getDateOfEmployment())
                 .status(employee.getStatus())
+                .profilePicturePath(employee.getProfilePicturePath())
+                .documentPath(employee.getDocumentPath())
                 .build();
     }
 }

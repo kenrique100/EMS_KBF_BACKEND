@@ -1,5 +1,6 @@
 package com.kbf.employee.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -37,6 +38,7 @@ public class Employee {
     private Department department;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     @Column(name = "date_of_employment", nullable = false)

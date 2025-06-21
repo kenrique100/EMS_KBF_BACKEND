@@ -52,7 +52,8 @@ public class WebSecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/actuator/health"
+                                "/actuator/health",
+                                "/api/employees/files/**"
                         ).permitAll()
                         .requestMatchers(
                                 "/api/employees/**",

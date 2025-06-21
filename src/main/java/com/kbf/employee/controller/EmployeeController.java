@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +33,6 @@ import java.util.Map;
 @SecurityRequirement(name = "bearerAuth")
 public class EmployeeController {
     private final EmployeeService employeeService;
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
     @Operation(summary = "Create a new employee")
     @ApiResponses({
@@ -48,6 +49,14 @@ public class EmployeeController {
             @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
             @RequestPart(value = "document", required = false) MultipartFile document) {
 
+        log.info("Creating employee: {}", employeeDTO.getUsername());
+        log.debug("Profile picture: {} ({} bytes)",
+                profilePicture != null ? profilePicture.getOriginalFilename() : "null",
+                profilePicture != null ? profilePicture.getSize() : 0);
+        log.debug("Document: {} ({} bytes)",
+                document != null ? document.getOriginalFilename() : "null",
+                document != null ? document.getSize() : 0);
+
         try {
             validateFile(profilePicture, "profile");
             validateFile(document, "document");
@@ -55,9 +64,10 @@ public class EmployeeController {
             EmployeeDTO createdEmployee = employeeService.createEmployee(employeeDTO, profilePicture, document);
             return ResponseEntity.ok(createdEmployee);
         } catch (InvalidFileException e) {
+            log.error("File validation failed: {}", e.getMessage());
             return buildErrorResponse(e.getMessage(), HttpStatus.UNSUPPORTED_MEDIA_TYPE);
         } catch (Exception e) {
-            log.error("Error creating employee: {}", e.getMessage());
+            log.error("Error creating employee: {}", e.getMessage(), e);
             return buildErrorResponse("Failed to create employee", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -81,6 +91,30 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.getEmployeeById(id));
     }
 
+    @Operation(summary = "Get employee file")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "File retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "File not found")
+    })
+    @GetMapping("/files/{filePath:.+}")
+    public ResponseEntity<Resource> getFile(
+            @PathVariable String filePath,
+            @RequestParam(required = false) String type) {
+
+        Resource file = employeeService.loadFile(filePath);
+        HttpHeaders headers = new HttpHeaders();
+
+        if (type != null && type.equals("download")) {
+            headers.setContentDispositionFormData("attachment", filePath);
+        } else {
+            headers.setContentDispositionFormData("inline", filePath);
+        }
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(file);
+    }
+
     @Operation(summary = "Update employee details")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Employee updated successfully"),
@@ -96,6 +130,7 @@ public class EmployeeController {
             @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
             @RequestPart(value = "document", required = false) MultipartFile document) {
 
+        log.info("Updating employee ID: {}", id);
         return ResponseEntity.ok(employeeService.updateEmployee(id, employeeDTO, profilePicture, document));
     }
 
@@ -107,15 +142,13 @@ public class EmployeeController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
+        log.info("Deleting employee ID: {}", id);
         employeeService.deleteEmployee(id);
         return ResponseEntity.noContent().build();
     }
 
     private void validateFile(MultipartFile file, String fileType) throws InvalidFileException {
-        if (file != null) {
-            if (file.getSize() > MAX_FILE_SIZE) {
-                throw new InvalidFileException(fileType + " size exceeds 5MB limit");
-            }
+        if (file != null && !file.isEmpty()) {
             if ("profile".equals(fileType)) {
                 FileValidationUtil.validateImageFile(file);
             } else if ("document".equals(fileType)) {
