@@ -75,16 +75,20 @@ public class WebSecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:3000",
+                "http://127.0.0.1:3000"
+        ));
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
         ));
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization", "Content-Type", "X-Requested-With",
-                "Accept", "X-XSRF-TOKEN"
+                "Accept", "X-XSRF-TOKEN", "Origin", "Access-Control-Request-Method",
+                "Access-Control-Request-Headers"
         ));
-        configuration.setExposedHeaders(List.of(
-                "Authorization", "X-XSRF-TOKEN"
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization", "X-XSRF-TOKEN", "Content-Disposition"
         ));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
