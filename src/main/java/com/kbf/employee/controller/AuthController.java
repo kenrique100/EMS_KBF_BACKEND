@@ -1,17 +1,22 @@
 package com.kbf.employee.controller;
 
 import com.kbf.employee.dto.*;
+import com.kbf.employee.exception.InvalidTokenException;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.security.JwtTokenProvider;
 import com.kbf.employee.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.stream.Collectors;
@@ -25,68 +30,87 @@ public class AuthController {
     private final JwtTokenProvider tokenProvider;
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        loginRequest.getUsername(),
-                        loginRequest.getPassword()
-                )
-        );
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getUsername(),
+                            loginRequest.getPassword()
+                    )
+            );
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        String jwt = tokenProvider.generateAccessToken(authentication);
-        String refreshToken = tokenProvider.generateRefreshToken(authentication);
+            String jwt = tokenProvider.generateAccessToken(authentication);
+            String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
-        // Get user details to include in response
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        UserResponse userResponse = createUserResponse(userPrincipal.getEmployee());
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+            UserResponse userResponse = createUserResponse(userPrincipal.getEmployee());
 
-        return ResponseEntity.ok(new LoginResponse(jwt, refreshToken, userResponse));
+            return ResponseEntity.ok(new LoginResponse(jwt, refreshToken, userResponse));
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ErrorResponse.unauthorized("Invalid username or password"));
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ErrorResponse.notFound("User not found"));
+        }
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<LoginResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest refreshTokenRequest) {
-        String refreshToken = refreshTokenRequest.getRefreshToken();
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest refreshTokenRequest) {
+        try {
+            String refreshToken = refreshTokenRequest.getRefreshToken();
+            tokenProvider.validateToken(refreshToken); // This will throw InvalidTokenException if invalid
 
-        if (!tokenProvider.validateToken(refreshToken)) {
-            return ResponseEntity.badRequest().body(new LoginResponse("Invalid refresh token", null, null));
+            String username = tokenProvider.getUsernameFromToken(refreshToken);
+            UserDetails userDetails = tokenProvider.loadUserByUsername(username);
+
+            Authentication authentication = new UsernamePasswordAuthenticationToken(
+                    userDetails,
+                    null,
+                    userDetails.getAuthorities()
+            );
+
+            String newAccessToken = tokenProvider.generateAccessToken(authentication);
+            String newRefreshToken = tokenProvider.generateRefreshToken(authentication);
+
+            return ResponseEntity.ok(new TokenRefreshResponse(newAccessToken, newRefreshToken));
+        } catch (InvalidTokenException e) {
+            throw e; // Let the GlobalExceptionHandler handle it
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ErrorResponse.notFound("User not found"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ErrorResponse.internalError("Token refresh failed"));
         }
-
-        String username = tokenProvider.getUsernameFromToken(refreshToken);
-        UserPrincipal userPrincipal = (UserPrincipal) tokenProvider.loadUserByUsername(username);
-
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                userPrincipal,
-                null,
-                userPrincipal.getAuthorities()
-        );
-
-        String newAccessToken = tokenProvider.generateAccessToken(authentication);
-        String newRefreshToken = tokenProvider.generateRefreshToken(authentication);
-        UserResponse userResponse = createUserResponse(userPrincipal.getEmployee());
-
-        return ResponseEntity.ok(new LoginResponse(newAccessToken, newRefreshToken, userResponse));
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<LogoutResponse> logoutUser(HttpServletRequest request) {
-        String token = tokenProvider.getJwtFromRequest(request);
 
-        if (token != null) {
+    @PostMapping("/logout")
+    public ResponseEntity<?> logoutUser(HttpServletRequest request) {
+        try {
+            String token = tokenProvider.getJwtFromRequest(request);
+            if (token == null) {
+                throw new InvalidTokenException("Missing authorization token");
+            }
+
+            tokenProvider.validateToken(token); // Validate before blacklisting
             tokenProvider.blacklistToken(token);
             SecurityContextHolder.clearContext();
-            return ResponseEntity.ok(new LogoutResponse("Logout successful"));
-        }
 
-        return ResponseEntity.badRequest().body(new LogoutResponse("No token provided"));
+            return ResponseEntity.ok(new LogoutResponse("Logout successful"));
+        } catch (InvalidTokenException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ErrorResponse.unauthorized(e.getMessage()));
+        }
     }
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        UserResponse response = createUserResponse(userPrincipal.getEmployee());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(createUserResponse(userPrincipal.getEmployee()));
     }
 
     private UserResponse createUserResponse(Employee employee) {
