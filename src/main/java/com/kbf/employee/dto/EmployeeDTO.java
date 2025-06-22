@@ -11,7 +11,9 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Data-transfer object used for both creating and returning employee records.
@@ -78,4 +80,10 @@ public class EmployeeDTO {
             example = "uploads/employee/docs/12345.pdf",
             accessMode = Schema.AccessMode.READ_ONLY)
     private String documentPath;
+
+    @Schema(description = "Status expiration timestamp", accessMode = Schema.AccessMode.READ_ONLY)
+    private LocalDateTime statusExpiration;
+
+    @Schema(description = "Suspension duration", accessMode = Schema.AccessMode.READ_ONLY)
+    private Duration suspensionDuration;
 }

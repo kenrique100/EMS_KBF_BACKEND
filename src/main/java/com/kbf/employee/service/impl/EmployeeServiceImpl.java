@@ -8,18 +8,23 @@ import com.kbf.employee.repository.EmployeeRepository;
 import com.kbf.employee.repository.RoleRepository;
 import com.kbf.employee.security.UserPrincipal;
 import com.kbf.employee.service.EmployeeService;
-import com.kbf.employee.service.FileStorageService;
+import com.kbf.employee.util.EmployeeConverter;
+import com.kbf.employee.util.EmployeeHelper;
+import com.kbf.employee.util.EmployeeValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -27,40 +32,38 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
     private final EmployeeRepository employeeRepository;
-    private final FileStorageService fileStorageService;
-    private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
+    private final EmployeeValidator employeeValidator;
+    private final EmployeeHelper employeeHelper;
+    private final EmployeeConverter employeeConverter;
 
     @Override
     @Transactional
     public EmployeeDTO createEmployee(EmployeeDTO dto, MultipartFile profilePicture, MultipartFile document) {
-        validateEmployeeCreation(dto);
+        employeeValidator.validateEmployeeCreation(dto);
 
-        String profilePath = storeFile(profilePicture, "profile");
-        String docPath = storeFile(document, "document");
+        String profilePath = employeeHelper.storeFile(profilePicture, "profile");
+        String docPath = employeeHelper.storeFile(document, "document");
 
         try {
-            Employee employee = buildEmployeeFromDTO(dto);
+            Employee employee = employeeHelper.buildEmployeeFromDTO(dto);
             employee.setProfilePicturePath(profilePath);
             employee.setDocumentPath(docPath);
 
-            setDefaultRole(employee);
-            Employee savedEmployee = employeeRepository.save(employee);
+            Role userRole = roleRepository.findByName(Role.RoleName.ROLE_USER)
+                    .orElseThrow(() -> new IllegalStateException("Default role not found"));
+            employeeHelper.setDefaultRole(employee, userRole);
 
+            Employee savedEmployee = employeeRepository.save(employee);
             log.info("Created employee ID {} with profile: {}, document: {}",
                     savedEmployee.getId(), profilePath, docPath);
 
-            return convertToDTO(savedEmployee);
+            return employeeConverter.convertToDTO(savedEmployee);
         } catch (Exception e) {
-            if (profilePath != null) fileStorageService.delete(profilePath);
-            if (docPath != null) fileStorageService.delete(docPath);
+            if (profilePath != null) employeeHelper.safeDeleteFile(profilePath);
+            if (docPath != null) employeeHelper.safeDeleteFile(docPath);
             throw new RuntimeException("Failed to create employee: " + e.getMessage(), e);
         }
-    }
-
-    @Override
-    public Resource loadFile(String filePath) {
-        return fileStorageService.loadAsResource(filePath);
     }
 
     @Override
@@ -69,56 +72,95 @@ public class EmployeeServiceImpl implements EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
-        validateEmployeeUpdate(employee, dto);
+        employeeValidator.validateEmployeeUpdate(employee, dto);
 
-        // Store new files first
         String newProfilePath = null;
         String newDocPath = null;
 
         try {
             if (profilePicture != null && !profilePicture.isEmpty()) {
-                newProfilePath = storeFile(profilePicture, "profile");
+                newProfilePath = employeeHelper.storeFile(profilePicture, "profile");
             }
 
             if (document != null && !document.isEmpty()) {
-                newDocPath = storeFile(document, "document");
+                newDocPath = employeeHelper.storeFile(document, "document");
             }
 
-            // Only delete old files after new files are successfully stored
             if (newProfilePath != null) {
-                safeDeleteFile(employee.getProfilePicturePath());
+                employeeHelper.safeDeleteFile(employee.getProfilePicturePath());
                 employee.setProfilePicturePath(newProfilePath);
             }
 
             if (newDocPath != null) {
-                safeDeleteFile(employee.getDocumentPath());
+                employeeHelper.safeDeleteFile(employee.getDocumentPath());
                 employee.setDocumentPath(newDocPath);
             }
 
-            updateEmployeeFields(employee, dto);
+            employeeHelper.updateEmployeeFields(employee, dto);
             Employee updated = employeeRepository.save(employee);
             log.info("Updated employee ID {} with profile: {}, document: {}",
                     id, newProfilePath, newDocPath);
-            return convertToDTO(updated);
+            return employeeConverter.convertToDTO(updated);
         } catch (Exception e) {
-            // Cleanup new files if update fails
-            if (newProfilePath != null) safeDeleteFile(newProfilePath);
-            if (newDocPath != null) safeDeleteFile(newDocPath);
+            if (newProfilePath != null) employeeHelper.safeDeleteFile(newProfilePath);
+            if (newDocPath != null) employeeHelper.safeDeleteFile(newDocPath);
             throw new RuntimeException("Failed to update employee: " + e.getMessage(), e);
         }
     }
 
-    private void safeDeleteFile(String filePath) {
+    @Override
+    @Transactional
+    public EmployeeDTO updateEmployeeStatus(Long id, EmployeeStatusUpdateDTO statusUpdateDTO) {
+        if (statusUpdateDTO == null) {
+            throw new InvalidRequestException("Status update data cannot be null");
+        }
+
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
+
+        Employee.EmployeeStatus newStatus = statusUpdateDTO.getStatus();
+        employeeValidator.validateStatusTransition(employee, newStatus);
+
+        // Clear all status-related fields initially
+        employee.setStatusExpiration(null);
+        employee.setSuspensionDuration(null);
+        employee.setTerminationTimestamp(null);
+        employee.setStatusChangeTimestamp(LocalDateTime.now());
+
+        switch (newStatus) {
+            case ON_LEAVE:
+                employeeValidator.validateLeaveDates(statusUpdateDTO);
+                employee.setStatusExpiration(statusUpdateDTO.getExpectedReturnDate().atStartOfDay());
+                break;
+
+            case SUSPENDED:
+                try {
+                    Duration duration = statusUpdateDTO.getSuspensionDuration();
+                    employeeValidator.validateSuspensionDuration(duration);
+                    employee.setSuspensionDuration(duration);
+                    employee.setStatusExpiration(LocalDateTime.now().plus(duration));
+                } catch (DateTimeParseException e) {
+                    throw new InvalidRequestException("Invalid duration format. Use ISO-8601 format (e.g., PT1H30M)");
+                }
+                break;
+
+            case TERMINATED:
+                employee.setTerminationTimestamp(LocalDateTime.now());
+                break;
+        }
+
+        employee.setStatus(newStatus);
+
         try {
-            if (filePath != null && !filePath.isBlank()) {
-                fileStorageService.delete(filePath);
-            }
+            Employee updated = employeeRepository.save(employee);
+            return employeeConverter.convertToDTO(updated);
+        } catch (DataIntegrityViolationException e) {
+            throw new InvalidOperationException("Failed to update employee status due to database constraints");
         } catch (Exception e) {
-            log.warn("Failed to delete file {}: {}", filePath, e.getMessage());
-            // Continue with update even if file deletion fails
+            log.error("Error updating employee status: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to update employee status", e);
         }
     }
-
 
     @Override
     public EmployeeProfileDTO getEmployeeProfile(Long id) {
@@ -132,34 +174,26 @@ public class EmployeeServiceImpl implements EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
-        return EmployeeProfileDTO.builder()
-                .id(employee.getId())
-                .username(employee.getUsername())
-                .name(employee.getName())
-                .email(employee.getEmail())
-                .phoneNumber(employee.getPhoneNumber())
-                .department(employee.getDepartment())
-                .dateOfEmployment(employee.getDateOfEmployment())
-                .status(employee.getStatus())
-                .profilePicturePath(employee.getProfilePicturePath())
-                .documentPath(employee.getDocumentPath())
-                .createdAt(employee.getCreatedAt().toLocalDate())
-                .updatedAt(employee.getUpdatedAt().toLocalDate())
-                .build();
+        return employeeConverter.convertToProfileDTO(employee);
     }
 
     @Override
     public List<EmployeeDTO> getAllEmployees() {
         return employeeRepository.findAll().stream()
-                .map(this::convertToDTO)
+                .map(employeeConverter::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Resource loadFile(String filePath) {
+        return employeeHelper.loadFile(filePath);
     }
 
     @Override
     public EmployeeDTO getEmployeeById(Long id) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
-        return convertToDTO(employee);
+        return employeeConverter.convertToDTO(employee);
     }
 
     @Override
@@ -168,112 +202,58 @@ public class EmployeeServiceImpl implements EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
-        if (employee.getProfilePicturePath() != null) {
-            fileStorageService.delete(employee.getProfilePicturePath());
-        }
-        if (employee.getDocumentPath() != null) {
-            fileStorageService.delete(employee.getDocumentPath());
-        }
+        employeeHelper.safeDeleteFile(employee.getProfilePicturePath());
+        employeeHelper.safeDeleteFile(employee.getDocumentPath());
 
         employeeRepository.delete(employee);
         log.info("Deleted employee ID: {}", id);
     }
 
-    private void validateEmployeeCreation(EmployeeDTO dto) {
-        if (employeeRepository.existsByUsername(dto.getUsername())) {
-            throw new DuplicateResourceException("Username already exists");
-        }
-        if (employeeRepository.existsByEmail(dto.getEmail())) {
-            throw new DuplicateResourceException("Email already exists");
-        }
+    @Override
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void autoUpdateEmployeeStatuses() {
+        autoProcessEmployeeStatuses();
     }
 
-    private void validateEmployeeUpdate(Employee employee, EmployeeUpdateDTO dto) {
-        if (dto.getUsername() != null && !employee.getUsername().equals(dto.getUsername())) {
-            if (employeeRepository.existsByUsername(dto.getUsername())) {
-                throw new DuplicateResourceException("Username already exists");
-            }
-        }
+    @Override
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void autoProcessEmployeeStatuses() {
+        LocalDateTime now = LocalDateTime.now();
 
-        if (dto.getEmail() != null && !employee.getEmail().equals(dto.getEmail())) {
-            if (employeeRepository.existsByEmail(dto.getEmail())) {
-                throw new DuplicateResourceException("Email already exists");
-            }
-        }
-    }
+        // Reactivate employees
+        List<Employee> toReactivate = employeeRepository
+                .findByStatusExpirationBeforeAndStatusIn(
+                        now,
+                        List.of(Employee.EmployeeStatus.ON_LEAVE, Employee.EmployeeStatus.SUSPENDED)
+                );
 
-    private Employee buildEmployeeFromDTO(EmployeeDTO dto) {
-        return Employee.builder()
-                .username(dto.getUsername())
-                .name(dto.getName())
-                .email(dto.getEmail())
-                .phoneNumber(dto.getPhoneNumber())
-                .department(dto.getDepartment())
-                .password(passwordEncoder.encode(dto.getPassword()))
-                .dateOfEmployment(dto.getDateOfEmployment())
-                .status(Employee.EmployeeStatus.ACTIVE)
-                .build();
-    }
+        toReactivate.forEach(employee -> {
+            employee.setStatus(Employee.EmployeeStatus.ACTIVE);
+            employee.setStatusExpiration(null);
+            employee.setSuspensionDuration(null);
+            log.info("Auto-updated status to ACTIVE for employee: {}", employee.getId());
+        });
 
-    private void setDefaultRole(Employee employee) {
-        Role userRole = roleRepository.findByName(Role.RoleName.ROLE_USER)
-                .orElseThrow(() -> new IllegalStateException("Default role not found"));
-        employee.setRoles(Set.of(userRole));
-    }
+        // Delete terminated employees
+        LocalDateTime seventyTwoHoursAgo = now.minusHours(72);
+        List<Employee> toDelete = employeeRepository.findByStatusAndTerminationTimestampBefore(
+                Employee.EmployeeStatus.TERMINATED,
+                seventyTwoHoursAgo
+        );
 
-    private void updateEmployeeFields(Employee employee, EmployeeUpdateDTO dto) {
-        if (dto.getUsername() != null) {
-            employee.setUsername(dto.getUsername());
-        }
-        if (dto.getName() != null) {
-            employee.setName(dto.getName());
-        }
-        if (dto.getEmail() != null) {
-            employee.setEmail(dto.getEmail());
-        }
-        if (dto.getPhoneNumber() != null) {
-            employee.setPhoneNumber(dto.getPhoneNumber());
-        }
-        if (dto.getDepartment() != null) {
-            employee.setDepartment(dto.getDepartment());
-        }
-        if (dto.getDateOfEmployment() != null) {
-            employee.setDateOfEmployment(dto.getDateOfEmployment());
-        }
-        if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
-            employee.setPassword(passwordEncoder.encode(dto.getPassword()));
-        }
-        if (dto.getStatus() != null) {
-            employee.setStatus(dto.getStatus());
-        }
-    }
-
-    private String storeFile(MultipartFile file, String fileType) {
-        if (file != null && !file.isEmpty()) {
+        toDelete.forEach(employee -> {
             try {
-                String filename = fileStorageService.store(file);
-                log.debug("Stored {} file: {}", fileType, filename);
-                return filename;
+                employeeHelper.safeDeleteFile(employee.getProfilePicturePath());
+                employeeHelper.safeDeleteFile(employee.getDocumentPath());
+                employeeRepository.delete(employee);
+                log.info("Auto-deleted terminated employee: {}", employee.getId());
             } catch (Exception e) {
-                log.error("Failed to store {} file: {}", fileType, e.getMessage());
-                throw new FileStorageException("Failed to store " + fileType + " file");
+                log.error("Failed to auto-delete employee {}: {}", employee.getId(), e.getMessage());
             }
-        }
-        return null;
-    }
+        });
 
-    private EmployeeDTO convertToDTO(Employee employee) {
-        return EmployeeDTO.builder()
-                .id(employee.getId())
-                .username(employee.getUsername())
-                .name(employee.getName())
-                .email(employee.getEmail())
-                .phoneNumber(employee.getPhoneNumber())
-                .department(employee.getDepartment())
-                .dateOfEmployment(employee.getDateOfEmployment())
-                .status(employee.getStatus())
-                .profilePicturePath(employee.getProfilePicturePath())
-                .documentPath(employee.getDocumentPath())
-                .build();
+        employeeRepository.saveAll(toReactivate);
     }
 }

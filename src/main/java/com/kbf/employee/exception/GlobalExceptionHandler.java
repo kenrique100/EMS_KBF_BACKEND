@@ -1,6 +1,7 @@
 package com.kbf.employee.exception;
 
 import com.kbf.employee.dto.ErrorResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -83,6 +84,30 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRequest(
+            InvalidRequestException ex, WebRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                ErrorResponse.create(
+                        HttpStatus.BAD_REQUEST,
+                        ex.getMessage(),
+                        request.getDescription(false)
+                )
+        );
+    }
+
+    @ExceptionHandler(InvalidOperationException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidOperation(
+            InvalidOperationException ex, WebRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                ErrorResponse.create(
+                        HttpStatus.BAD_REQUEST,
+                        ex.getMessage(),
+                        request.getDescription(false)
+                )
+        );
+    }
+
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleSpringAccessDenied(
             org.springframework.security.access.AccessDeniedException ex, WebRequest request) {
@@ -90,6 +115,18 @@ public class GlobalExceptionHandler {
                 ErrorResponse.create(
                         HttpStatus.FORBIDDEN,
                         "Access denied: " + ex.getMessage(),
+                        request.getDescription(false)
+                )
+        );
+    }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidToken(
+            InvalidTokenException ex, WebRequest request) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                ErrorResponse.create(
+                        HttpStatus.UNAUTHORIZED,
+                        ex.getMessage(),
                         request.getDescription(false)
                 )
         );
@@ -107,13 +144,13 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(InvalidTokenException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidToken(
-            InvalidTokenException ex, WebRequest request) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex, WebRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 ErrorResponse.create(
-                        HttpStatus.UNAUTHORIZED,
-                        ex.getMessage(),
+                        HttpStatus.CONFLICT,
+                        "Database constraint violation: " + ex.getRootCause().getMessage(),
                         request.getDescription(false)
                 )
         );

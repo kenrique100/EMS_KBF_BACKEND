@@ -8,7 +8,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -40,6 +42,26 @@ public class EmployeeProfileDTO {
 
     @Schema(description = "Employee status", implementation = Employee.EmployeeStatus.class)
     private Employee.EmployeeStatus status;
+
+    @Schema(description = "Timestamp when status was last changed",
+            example = "2023-06-15T14:30:00",
+            accessMode = Schema.AccessMode.READ_ONLY)
+    private LocalDateTime statusChangeTimestamp;
+
+    @Schema(description = "Timestamp when status will automatically revert to ACTIVE",
+            example = "2023-08-15T09:00:00",
+            accessMode = Schema.AccessMode.READ_ONLY)
+    private LocalDateTime statusExpiration;
+
+    @Schema(description = "Suspension duration in ISO-8601 format (only for SUSPENDED status)",
+            example = "PT72H",
+            accessMode = Schema.AccessMode.READ_ONLY)
+    private Duration suspensionDuration;
+
+    @Schema(description = "Termination timestamp",
+            example = "2023-07-25T14:30:00",
+            accessMode = Schema.AccessMode.READ_ONLY)
+    private LocalDateTime terminationTimestamp;
 
     @Schema(description = "Path to profile picture", example = "profiles/12345_profile.jpg")
     private String profilePicturePath;

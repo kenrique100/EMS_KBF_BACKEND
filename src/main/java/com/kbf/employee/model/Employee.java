@@ -6,6 +6,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -51,8 +52,21 @@ public class Employee {
     private String documentPath;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private EmployeeStatus status = EmployeeStatus.ACTIVE;
+    @Column(nullable = false, length = 20)
+    private EmployeeStatus status;
+
+
+    @Column(name = "status_change_timestamp")
+    private LocalDateTime statusChangeTimestamp;
+
+    @Column(name = "status_expiration")
+    private LocalDateTime statusExpiration;
+
+    @Column(name = "suspension_duration")
+    private Duration suspensionDuration;
+
+    @Column(name = "termination_timestamp")
+    private LocalDateTime terminationTimestamp;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -70,6 +84,6 @@ public class Employee {
     private LocalDateTime updatedAt;
 
     public enum EmployeeStatus {
-        ACTIVE, INACTIVE, ON_LEAVE, TERMINATED
+        ACTIVE, INACTIVE, ON_LEAVE, SUSPENDED, TERMINATED
     }
 }

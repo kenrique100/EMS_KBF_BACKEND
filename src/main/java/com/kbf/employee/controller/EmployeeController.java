@@ -91,6 +91,17 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.getEmployeeById(id));
     }
 
+    @Operation(summary = "Get employee profile")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Employee profile retrieved"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Employee not found")
+    })
+    @GetMapping("/{id}/profile")
+    public ResponseEntity<EmployeeProfileDTO> getEmployeeProfile(@PathVariable Long id) {
+        return ResponseEntity.ok(employeeService.getEmployeeProfile(id));
+    }
+
     @Operation(summary = "Get employee file")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "File retrieved successfully"),
@@ -132,6 +143,23 @@ public class EmployeeController {
 
         log.info("Updating employee ID: {}", id);
         return ResponseEntity.ok(employeeService.updateEmployee(id, employeeDTO, profilePicture, document));
+    }
+
+    @Operation(summary = "Update employee status")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Status updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Employee not found")
+    })
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EmployeeDTO> updateEmployeeStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody EmployeeStatusUpdateDTO statusUpdateDTO) {
+
+        log.info("Updating status for employee ID: {}", id);
+        return ResponseEntity.ok(employeeService.updateEmployeeStatus(id, statusUpdateDTO));
     }
 
     @Operation(summary = "Delete an employee")
