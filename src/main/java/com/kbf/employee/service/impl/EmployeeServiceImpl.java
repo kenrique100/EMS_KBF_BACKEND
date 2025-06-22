@@ -2,15 +2,13 @@ package com.kbf.employee.service.impl;
 
 import com.kbf.employee.dto.*;
 import com.kbf.employee.exception.*;
-import com.kbf.employee.model.Employee;
-import com.kbf.employee.model.Role;
+import com.kbf.employee.model.*;
 import com.kbf.employee.repository.EmployeeRepository;
+import com.kbf.employee.repository.EmployeeStatusHistoryRepository;
 import com.kbf.employee.repository.RoleRepository;
 import com.kbf.employee.security.UserPrincipal;
 import com.kbf.employee.service.EmployeeService;
-import com.kbf.employee.util.EmployeeConverter;
-import com.kbf.employee.util.EmployeeHelper;
-import com.kbf.employee.util.EmployeeValidator;
+import com.kbf.employee.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -23,7 +21,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,6 +29,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
     private final EmployeeRepository employeeRepository;
+    private final EmployeeStatusHistoryRepository historyRepository;
     private final RoleRepository roleRepository;
     private final EmployeeValidator employeeValidator;
     private final EmployeeHelper employeeHelper;
@@ -58,12 +56,21 @@ public class EmployeeServiceImpl implements EmployeeService {
             log.info("Created employee ID {} with profile: {}, document: {}",
                     savedEmployee.getId(), profilePath, docPath);
 
+            createInitialStatusHistory(savedEmployee);
             return employeeConverter.convertToDTO(savedEmployee);
         } catch (Exception e) {
-            if (profilePath != null) employeeHelper.safeDeleteFile(profilePath);
-            if (docPath != null) employeeHelper.safeDeleteFile(docPath);
-            throw new RuntimeException("Failed to create employee: " + e.getMessage(), e);
+            employeeHelper.safeDeleteFile(profilePath);
+            employeeHelper.safeDeleteFile(docPath);
+            throw new ServiceOperationException("Failed to create employee", e);
         }
+    }
+
+    private void createInitialStatusHistory(Employee employee) {
+        historyRepository.save(EmployeeStatusHistory.builder()
+                .employee(employee)
+                .status(Employee.EmployeeStatus.ACTIVE)
+                .startTimestamp(employee.getCreatedAt())
+                .build());
     }
 
     @Override
@@ -81,30 +88,20 @@ public class EmployeeServiceImpl implements EmployeeService {
             if (profilePicture != null && !profilePicture.isEmpty()) {
                 newProfilePath = employeeHelper.storeFile(profilePicture, "profile");
             }
-
             if (document != null && !document.isEmpty()) {
                 newDocPath = employeeHelper.storeFile(document, "document");
             }
 
-            if (newProfilePath != null) {
-                employeeHelper.safeDeleteFile(employee.getProfilePicturePath());
-                employee.setProfilePicturePath(newProfilePath);
-            }
-
-            if (newDocPath != null) {
-                employeeHelper.safeDeleteFile(employee.getDocumentPath());
-                employee.setDocumentPath(newDocPath);
-            }
-
+            employeeHelper.updateEmployeeFiles(employee, newProfilePath, newDocPath);
             employeeHelper.updateEmployeeFields(employee, dto);
+
             Employee updated = employeeRepository.save(employee);
-            log.info("Updated employee ID {} with profile: {}, document: {}",
-                    id, newProfilePath, newDocPath);
+            log.info("Updated employee ID {} with profile: {}, document: {}", id, newProfilePath, newDocPath);
             return employeeConverter.convertToDTO(updated);
         } catch (Exception e) {
-            if (newProfilePath != null) employeeHelper.safeDeleteFile(newProfilePath);
-            if (newDocPath != null) employeeHelper.safeDeleteFile(newDocPath);
-            throw new RuntimeException("Failed to update employee: " + e.getMessage(), e);
+            employeeHelper.safeDeleteFile(newProfilePath);
+            employeeHelper.safeDeleteFile(newDocPath);
+            throw new ServiceOperationException("Failed to update employee", e);
         }
     }
 
@@ -121,7 +118,35 @@ public class EmployeeServiceImpl implements EmployeeService {
         Employee.EmployeeStatus newStatus = statusUpdateDTO.getStatus();
         employeeValidator.validateStatusTransition(employee, newStatus);
 
-        // Clear all status-related fields initially
+        closeCurrentStatusHistory(employee);
+        updateEmployeeStatusFields(employee, statusUpdateDTO, newStatus);
+        createStatusHistory(employee, statusUpdateDTO, newStatus);
+
+        try {
+            Employee updated = employeeRepository.save(employee);
+            return employeeConverter.convertToDTO(updated);
+        } catch (DataIntegrityViolationException e) {
+            throw new InvalidOperationException("Database constraint violation during status update");
+        } catch (Exception e) {
+            log.error("Error updating employee status: {}", e.getMessage(), e);
+            throw new ServiceOperationException("Failed to update employee status", e);
+        }
+    }
+
+    private void closeCurrentStatusHistory(Employee employee) {
+        historyRepository.findByEmployeeIdAndEndTimestampIsNull(employee.getId())
+                .ifPresent(history -> {
+                    history.setEndTimestamp(LocalDateTime.now());
+                    history.setActualDuration(Duration.between(
+                            history.getStartTimestamp(),
+                            LocalDateTime.now()
+                    ));
+                    historyRepository.save(history);
+                });
+    }
+
+    private void updateEmployeeStatusFields(Employee employee, EmployeeStatusUpdateDTO statusUpdateDTO,
+                                            Employee.EmployeeStatus newStatus) {
         employee.setStatusExpiration(null);
         employee.setSuspensionDuration(null);
         employee.setTerminationTimestamp(null);
@@ -132,34 +157,41 @@ public class EmployeeServiceImpl implements EmployeeService {
                 employeeValidator.validateLeaveDates(statusUpdateDTO);
                 employee.setStatusExpiration(statusUpdateDTO.getExpectedReturnDate().atStartOfDay());
                 break;
-
             case SUSPENDED:
-                try {
-                    Duration duration = statusUpdateDTO.getSuspensionDuration();
-                    employeeValidator.validateSuspensionDuration(duration);
-                    employee.setSuspensionDuration(duration);
-                    employee.setStatusExpiration(LocalDateTime.now().plus(duration));
-                } catch (DateTimeParseException e) {
-                    throw new InvalidRequestException("Invalid duration format. Use ISO-8601 format (e.g., PT1H30M)");
-                }
+                employeeValidator.validateSuspensionDuration(statusUpdateDTO.getSuspensionDuration());
+                employee.setSuspensionDuration(statusUpdateDTO.getSuspensionDuration());
+                employee.setStatusExpiration(LocalDateTime.now().plus(statusUpdateDTO.getSuspensionDuration()));
                 break;
-
             case TERMINATED:
                 employee.setTerminationTimestamp(LocalDateTime.now());
                 break;
         }
-
         employee.setStatus(newStatus);
+    }
 
-        try {
-            Employee updated = employeeRepository.save(employee);
-            return employeeConverter.convertToDTO(updated);
-        } catch (DataIntegrityViolationException e) {
-            throw new InvalidOperationException("Failed to update employee status due to database constraints");
-        } catch (Exception e) {
-            log.error("Error updating employee status: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to update employee status", e);
+    private void createStatusHistory(Employee employee, EmployeeStatusUpdateDTO statusUpdateDTO,
+                                     Employee.EmployeeStatus newStatus) {
+        EmployeeStatusHistory history = EmployeeStatusHistory.builder()
+                .employee(employee)
+                .status(newStatus)
+                .startTimestamp(LocalDateTime.now())
+                .build();
+
+        switch (newStatus) {
+            case SUSPENDED:
+                history.setAllocatedDuration(statusUpdateDTO.getSuspensionDuration());
+                history.setExpectedEndTimestamp(LocalDateTime.now().plus(statusUpdateDTO.getSuspensionDuration()));
+                break;
+            case ON_LEAVE:
+                Duration allocated = Duration.between(
+                        statusUpdateDTO.getLeaveStartDate().atStartOfDay(),
+                        statusUpdateDTO.getExpectedReturnDate().atStartOfDay()
+                );
+                history.setAllocatedDuration(allocated);
+                history.setExpectedEndTimestamp(statusUpdateDTO.getExpectedReturnDate().atStartOfDay());
+                break;
         }
+        historyRepository.save(history);
     }
 
     @Override
@@ -168,13 +200,23 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .getAuthentication().getPrincipal();
 
         if (!userPrincipal.isAdmin() && !id.equals(userPrincipal.getId())) {
-            throw new AccessDeniedException("You are not authorized to access this profile");
+            throw new AccessDeniedException("Unauthorized profile access attempt");
         }
 
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
-        return employeeConverter.convertToProfileDTO(employee);
+        EmployeeProfileDTO profile = employeeConverter.convertToProfileDTO(employee);
+        profile.setStatusHistory(getEmployeeStatusHistory(id));
+        return profile;
+    }
+
+    @Override
+    public List<EmployeeStatusHistoryDTO> getEmployeeStatusHistory(Long employeeId) {
+        return historyRepository.findByEmployeeIdOrderByStartTimestampDesc(employeeId)
+                .stream()
+                .map(employeeConverter::convertToHistoryDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -191,9 +233,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public EmployeeDTO getEmployeeById(Long id) {
-        Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
-        return employeeConverter.convertToDTO(employee);
+        return employeeConverter.convertToDTO(employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id)));
     }
 
     @Override
@@ -202,9 +243,9 @@ public class EmployeeServiceImpl implements EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
+        historyRepository.deleteByEmployeeId(id);
         employeeHelper.safeDeleteFile(employee.getProfilePicturePath());
         employeeHelper.safeDeleteFile(employee.getDocumentPath());
-
         employeeRepository.delete(employee);
         log.info("Deleted employee ID: {}", id);
     }
@@ -212,17 +253,13 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Scheduled(fixedRate = 60000)
     @Transactional
-    public void autoUpdateEmployeeStatuses() {
-        autoProcessEmployeeStatuses();
-    }
-
-    @Override
-    @Scheduled(fixedRate = 60000)
-    @Transactional
     public void autoProcessEmployeeStatuses() {
         LocalDateTime now = LocalDateTime.now();
+        reactivateExpiredEmployees(now);
+        purgeTerminatedEmployees(now);
+    }
 
-        // Reactivate employees
+    private void reactivateExpiredEmployees(LocalDateTime now) {
         List<Employee> toReactivate = employeeRepository
                 .findByStatusExpirationBeforeAndStatusIn(
                         now,
@@ -230,30 +267,37 @@ public class EmployeeServiceImpl implements EmployeeService {
                 );
 
         toReactivate.forEach(employee -> {
+            closeCurrentStatusHistory(employee);
             employee.setStatus(Employee.EmployeeStatus.ACTIVE);
             employee.setStatusExpiration(null);
             employee.setSuspensionDuration(null);
-            log.info("Auto-updated status to ACTIVE for employee: {}", employee.getId());
+
+            historyRepository.save(EmployeeStatusHistory.builder()
+                    .employee(employee)
+                    .status(Employee.EmployeeStatus.ACTIVE)
+                    .startTimestamp(now)
+                    .build());
+
+            log.info("Auto-reactivated employee: {}", employee.getId());
         });
+        employeeRepository.saveAll(toReactivate);
+    }
 
-        // Delete terminated employees
-        LocalDateTime seventyTwoHoursAgo = now.minusHours(72);
-        List<Employee> toDelete = employeeRepository.findByStatusAndTerminationTimestampBefore(
+    private void purgeTerminatedEmployees(LocalDateTime now) {
+        LocalDateTime cutoff = now.minusHours(72);
+        employeeRepository.findByStatusAndTerminationTimestampBefore(
                 Employee.EmployeeStatus.TERMINATED,
-                seventyTwoHoursAgo
-        );
-
-        toDelete.forEach(employee -> {
+                cutoff
+        ).forEach(employee -> {
             try {
+                historyRepository.deleteByEmployeeId(employee.getId());
                 employeeHelper.safeDeleteFile(employee.getProfilePicturePath());
                 employeeHelper.safeDeleteFile(employee.getDocumentPath());
                 employeeRepository.delete(employee);
-                log.info("Auto-deleted terminated employee: {}", employee.getId());
+                log.info("Purged terminated employee: {}", employee.getId());
             } catch (Exception e) {
-                log.error("Failed to auto-delete employee {}: {}", employee.getId(), e.getMessage());
+                log.error("Purge failed for employee {}: {}", employee.getId(), e.getMessage());
             }
         });
-
-        employeeRepository.saveAll(toReactivate);
     }
 }

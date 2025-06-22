@@ -15,9 +15,6 @@ public interface EmployeeService {
     EmployeeDTO getEmployeeById(Long id);
     void deleteEmployee(Long id);
     Resource loadFile(String filePath);
-
-    @Deprecated
-    void autoUpdateEmployeeStatuses(); // Mark as deprecated if keeping for backward compatibility
-
     void autoProcessEmployeeStatuses();
+    List<EmployeeStatusHistoryDTO> getEmployeeStatusHistory(Long employeeId);
 }

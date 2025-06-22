@@ -1,6 +1,7 @@
 package com.kbf.employee.util;
 
-import com.kbf.employee.dto.*;
+import com.kbf.employee.dto.EmployeeDTO;
+import com.kbf.employee.dto.EmployeeUpdateDTO;
 import com.kbf.employee.exception.FileStorageException;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.model.Role;
@@ -39,46 +40,40 @@ public class EmployeeHelper {
     }
 
     public void updateEmployeeFields(Employee employee, EmployeeUpdateDTO dto) {
-        if (dto.getUsername() != null) {
-            employee.setUsername(dto.getUsername());
-        }
-        if (dto.getName() != null) {
-            employee.setName(dto.getName());
-        }
-        if (dto.getEmail() != null) {
-            employee.setEmail(dto.getEmail());
-        }
-        if (dto.getPhoneNumber() != null) {
-            employee.setPhoneNumber(dto.getPhoneNumber());
-        }
-        if (dto.getDepartment() != null) {
-            employee.setDepartment(dto.getDepartment());
-        }
-        if (dto.getDateOfEmployment() != null) {
-            employee.setDateOfEmployment(dto.getDateOfEmployment());
-        }
+        if (dto.getUsername() != null) employee.setUsername(dto.getUsername());
+        if (dto.getName() != null) employee.setName(dto.getName());
+        if (dto.getEmail() != null) employee.setEmail(dto.getEmail());
+        if (dto.getPhoneNumber() != null) employee.setPhoneNumber(dto.getPhoneNumber());
+        if (dto.getDepartment() != null) employee.setDepartment(dto.getDepartment());
+        if (dto.getDateOfEmployment() != null) employee.setDateOfEmployment(dto.getDateOfEmployment());
         if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
             employee.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
-        if (dto.getStatus() != null) {
-            employee.setStatus(dto.getStatus());
+    }
+
+    public void updateEmployeeFiles(Employee employee, String newProfilePath, String newDocPath) {
+        if (newProfilePath != null) {
+            safeDeleteFile(employee.getProfilePicturePath());
+            employee.setProfilePicturePath(newProfilePath);
+        }
+        if (newDocPath != null) {
+            safeDeleteFile(employee.getDocumentPath());
+            employee.setDocumentPath(newDocPath);
         }
     }
 
     public String storeFile(MultipartFile file, String fileType) {
-        if (file != null && !file.isEmpty()) {
-            try {
-                String filename = fileStorageService.store(file);
-                log.debug("Stored {} file: {}", fileType, filename);
-                return filename;
-            } catch (Exception e) {
-                log.error("Failed to store {} file: {}", fileType, e.getMessage());
-                throw new FileStorageException("Failed to store " + fileType + " file");
-            }
-        }
-        return null;
-    }
+        if (file == null || file.isEmpty()) return null;
 
+        try {
+            String filename = fileStorageService.store(file);
+            log.debug("Stored {} file: {}", fileType, filename);
+            return filename;
+        } catch (Exception e) {
+            log.error("{} file storage failed", fileType, e);
+            throw new FileStorageException(fileType + " storage failure");
+        }
+    }
 
     public void safeDeleteFile(String filePath) {
         try {
@@ -86,15 +81,16 @@ public class EmployeeHelper {
                 fileStorageService.delete(filePath);
             }
         } catch (Exception e) {
-            log.warn("Failed to delete file {}: {}", filePath, e.getMessage());
+            log.warn("File deletion failed: {}", filePath, e);
         }
     }
+
     public Resource loadFile(String filePath) {
         try {
             return fileStorageService.loadAsResource(filePath);
         } catch (Exception e) {
-            log.error("Failed to load file: {}", filePath, e);
-            throw new FileStorageException("Failed to load file: " + filePath);
+            log.error("File loading failed: {}", filePath, e);
+            throw new FileStorageException("File load failure");
         }
     }
 }

@@ -58,6 +58,10 @@ public class EmployeeProfileDTO {
             accessMode = Schema.AccessMode.READ_ONLY)
     private Duration suspensionDuration;
 
+    @Schema(description = "Status history records")
+    private List<EmployeeStatusHistoryDTO> statusHistory;
+
+
     @Schema(description = "Termination timestamp",
             example = "2023-07-25T14:30:00",
             accessMode = Schema.AccessMode.READ_ONLY)

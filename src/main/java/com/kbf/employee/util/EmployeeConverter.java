@@ -2,6 +2,7 @@ package com.kbf.employee.util;
 
 import com.kbf.employee.dto.*;
 import com.kbf.employee.model.Employee;
+import com.kbf.employee.model.EmployeeStatusHistory;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -41,6 +42,17 @@ public class EmployeeConverter {
                 .documentPath(employee.getDocumentPath())
                 .createdAt(employee.getCreatedAt().toLocalDate())
                 .updatedAt(employee.getUpdatedAt().toLocalDate())
+                .build();
+    }
+
+    public EmployeeStatusHistoryDTO convertToHistoryDTO(EmployeeStatusHistory history) {
+        return EmployeeStatusHistoryDTO.builder()
+                .status(history.getStatus())
+                .startTimestamp(history.getStartTimestamp())
+                .endTimestamp(history.getEndTimestamp())
+                .allocatedDuration(history.getAllocatedDuration())
+                .actualDuration(history.getActualDuration())
+                .expectedEndTimestamp(history.getExpectedEndTimestamp())
                 .build();
     }
 }

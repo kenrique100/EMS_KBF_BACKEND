@@ -9,7 +9,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -68,6 +70,9 @@ public class Employee {
     @Column(name = "termination_timestamp")
     private LocalDateTime terminationTimestamp;
 
+    @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<EmployeeStatusHistory> statusHistory = new ArrayList<>();
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "employee_roles",
@@ -82,6 +87,8 @@ public class Employee {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+
 
     public enum EmployeeStatus {
         ACTIVE, INACTIVE, ON_LEAVE, SUSPENDED, TERMINATED

@@ -12,6 +12,7 @@ import org.springframework.web.context.request.WebRequest;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -19,7 +20,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(
             MethodArgumentNotValidException ex, WebRequest request) {
-
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                 ErrorResponse.create(
                         HttpStatus.NOT_FOUND,
-                        ex.getMessage(),
+                        Objects.toString(ex.getMessage(), "Resource not found"),
                         request.getDescription(false)
                 )
         );
@@ -54,7 +54,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 ErrorResponse.create(
                         HttpStatus.CONFLICT,
-                        ex.getMessage(),
+                        Objects.toString(ex.getMessage(), "Duplicate resource"),
                         request.getDescription(false)
                 )
         );
@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ErrorResponse.create(
                         HttpStatus.INTERNAL_SERVER_ERROR,
-                        ex.getMessage(),
+                        Objects.toString(ex.getMessage(), "File storage error"),
                         request.getDescription(false)
                 )
         );
@@ -78,7 +78,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(
                 ErrorResponse.create(
                         HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-                        ex.getMessage(),
+                        Objects.toString(ex.getMessage(), "Invalid file"),
                         request.getDescription(false)
                 )
         );
@@ -90,7 +90,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 ErrorResponse.create(
                         HttpStatus.BAD_REQUEST,
-                        ex.getMessage(),
+                        Objects.toString(ex.getMessage(), "Invalid request"),
                         request.getDescription(false)
                 )
         );
@@ -102,7 +102,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 ErrorResponse.create(
                         HttpStatus.BAD_REQUEST,
-                        ex.getMessage(),
+                        Objects.toString(ex.getMessage(), "Invalid operation"),
                         request.getDescription(false)
                 )
         );
@@ -114,7 +114,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                 ErrorResponse.create(
                         HttpStatus.FORBIDDEN,
-                        "Access denied: " + ex.getMessage(),
+                        "Access denied: " + Objects.toString(ex.getMessage(), ""),
                         request.getDescription(false)
                 )
         );
@@ -126,7 +126,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                 ErrorResponse.create(
                         HttpStatus.UNAUTHORIZED,
-                        ex.getMessage(),
+                        Objects.toString(ex.getMessage(), "Invalid token"),
+                        request.getDescription(false)
+                )
+        );
+    }
+
+    @ExceptionHandler(ServiceOperationException.class)
+    public ResponseEntity<ErrorResponse> handleServiceOperation(
+            ServiceOperationException ex, WebRequest request) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ErrorResponse.create(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        Objects.toString(ex.getMessage(), "Service operation failed"),
                         request.getDescription(false)
                 )
         );
@@ -138,7 +150,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ErrorResponse.create(
                         HttpStatus.INTERNAL_SERVER_ERROR,
-                        "An unexpected error occurred: " + ex.getMessage(),
+                        "An unexpected error occurred: " + Objects.toString(ex.getMessage(), ""),
                         request.getDescription(false)
                 )
         );
@@ -147,10 +159,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
             DataIntegrityViolationException ex, WebRequest request) {
+        String rootCause = ex.getRootCause() != null ?
+                Objects.toString(ex.getRootCause().getMessage(), "Database constraint violation") :
+                "Database constraint violation";
+
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 ErrorResponse.create(
                         HttpStatus.CONFLICT,
-                        "Database constraint violation: " + ex.getRootCause().getMessage(),
+                        "Database constraint violation: " + rootCause,
                         request.getDescription(false)
                 )
         );
