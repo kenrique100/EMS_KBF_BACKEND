@@ -1,8 +1,6 @@
-// TaskController.java
 package com.kbf.employee.controller;
 
-import com.kbf.employee.dto.TaskDTO;
-import com.kbf.employee.dto.TaskActionDTO;
+import com.kbf.employee.dto.*;
 import com.kbf.employee.security.UserPrincipal;
 import com.kbf.employee.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,7 +52,7 @@ public class TaskController {
             @ApiResponse(responseCode = "403", description = "Forbidden"),
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
-    @GetMapping("/employee/{employeeId}")
+    @GetMapping("/employee-tasks/{employeeId}")
     @PreAuthorize("hasRole('ADMIN') or @employeeSecurity.isOwner(authentication, #employeeId)")
     public ResponseEntity<List<TaskDTO>> getTasksForEmployee(@PathVariable Long employeeId) {
         return ResponseEntity.ok(taskService.getAllTasksForEmployee(employeeId));
@@ -74,8 +72,7 @@ public class TaskController {
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         return ResponseEntity.ok(taskService.updateTaskStatus(
-                actionDTO.getTaskId(),
-                actionDTO.getAction(),
+                actionDTO,
                 userPrincipal.getId(),
                 userPrincipal.isAdmin()
         ));
@@ -92,6 +89,7 @@ public class TaskController {
         taskService.deleteTask(id);
         return ResponseEntity.noContent().build();
     }
+
     @Operation(summary = "Get task by ID")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Task found"),
@@ -115,5 +113,17 @@ public class TaskController {
             @PathVariable Long id,
             @Valid @RequestBody TaskDTO taskDTO) {
         return ResponseEntity.ok(taskService.updateTask(id, taskDTO));
+    }
+
+    @Operation(summary = "Get productivity statistics for an employee")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Productivity stats retrieved"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Employee not found")
+    })
+    @GetMapping("/productivity/employee/{employeeId}")
+    @PreAuthorize("hasRole('ADMIN') or @employeeSecurity.isOwner(authentication, #employeeId)")
+    public ResponseEntity<ProductivityStatsDTO> getProductivityStats(@PathVariable Long employeeId) {
+        return ResponseEntity.ok(taskService.getProductivityStats(employeeId));
     }
 }

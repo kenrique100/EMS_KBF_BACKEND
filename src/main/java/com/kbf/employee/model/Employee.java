@@ -53,10 +53,12 @@ public class Employee {
     @Column(name = "document_path")
     private String documentPath;
 
+    @Column(name = "total_hours_worked_last_30_days")
+    private Double totalHoursWorkedLast30Days = 0.0;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private EmployeeStatus status;
-
 
     @Column(name = "status_change_timestamp")
     private LocalDateTime statusChangeTimestamp;
@@ -69,6 +71,18 @@ public class Employee {
 
     @Column(name = "termination_timestamp")
     private LocalDateTime terminationTimestamp;
+
+    @Column(name = "working_days_count")
+    private Integer workingDaysCount = 0;
+
+    @Column(name = "last_productivity_reset_date")
+    private LocalDate lastProductivityResetDate;
+
+    @Column(name = "current_period_start_date")
+    private LocalDate currentPeriodStartDate;
+
+    @Column(name = "total_productive_days")
+    private Integer totalProductiveDays = 0;
 
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EmployeeStatusHistory> statusHistory = new ArrayList<>();

@@ -1,4 +1,3 @@
-// TaskDTO.java
 package com.kbf.employee.dto;
 
 import com.kbf.employee.model.Task;
@@ -38,18 +37,24 @@ public class TaskDTO {
     @Schema(description = "Task status", example = "IN_PROGRESS", accessMode = Schema.AccessMode.READ_ONLY)
     private Task.TaskStatus status;
 
-    @Min(1)
+    @Min(value = 1, message = "Expected hours must be at least 1")
     @Schema(description = "Expected hours to complete the task", example = "8")
     private Integer expectedHours;
 
     @Schema(description = "Actual hours spent on the task", example = "7.5", accessMode = Schema.AccessMode.READ_ONLY)
     private Double actualHours;
 
+    @Schema(description = "Total worked minutes on the task", example = "450", accessMode = Schema.AccessMode.READ_ONLY)
+    private Long totalWorkedMinutes;
+
     @Schema(description = "When the task was started", example = "2023-06-15T09:30:00", accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime startTime;
 
     @Schema(description = "When the task was stopped", example = "2023-06-15T17:00:00", accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime stopTime;
+
+    @Schema(description = "When the task was last resumed", example = "2023-06-15T13:00:00", accessMode = Schema.AccessMode.READ_ONLY)
+    private LocalDateTime lastResumeTime;
 
     @Schema(description = "Creation timestamp", example = "2023-06-15T08:00:00", accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime createdAt;

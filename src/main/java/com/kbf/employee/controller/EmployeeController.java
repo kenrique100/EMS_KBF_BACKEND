@@ -95,7 +95,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "403", description = "Forbidden"),
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
-    @GetMapping("/{id}/profile")
+    @GetMapping("/profile/{id}")
     public ResponseEntity<EmployeeProfileDTO> getEmployeeProfile(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.getEmployeeProfile(id));
     }
@@ -126,7 +126,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "403", description = "Forbidden"),
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
-    @PutMapping("/{id}/status")
+    @PutMapping("/status/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeDTO> updateEmployeeStatus(
             @PathVariable Long id,
@@ -154,7 +154,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "200", description = "Status history retrieved"),
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
-    @GetMapping("/{id}/status-history")
+    @GetMapping("/history/status/{id}")
     public ResponseEntity<List<EmployeeStatusHistoryDTO>> getEmployeeStatusHistory(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.getEmployeeStatusHistory(id));
     }
@@ -165,7 +165,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "400", description = "Invalid file format"),
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
-    @PutMapping(value = "/{id}/picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping(value = "/picture/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeDTO> updateEmployeeProfilePicture(
             @PathVariable Long id,

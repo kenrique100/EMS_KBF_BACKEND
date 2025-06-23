@@ -23,6 +23,7 @@ public class EmployeeConverter {
                 .suspensionDuration(employee.getSuspensionDuration())
                 .profilePicturePath(employee.getProfilePicturePath())
                 .documentPath(employee.getDocumentPath())
+                .totalHoursWorkedLast30Days(employee.getTotalHoursWorkedLast30Days())
                 .build();
     }
 
@@ -42,6 +43,7 @@ public class EmployeeConverter {
                 .terminationTimestamp(employee.getTerminationTimestamp())
                 .profilePicturePath(employee.getProfilePicturePath())
                 .documentPath(employee.getDocumentPath())
+                .totalHoursWorkedLast30Days(employee.getTotalHoursWorkedLast30Days())
                 .createdAt(employee.getCreatedAt().toLocalDate())
                 .updatedAt(employee.getUpdatedAt().toLocalDate())
                 .build();
@@ -57,6 +59,7 @@ public class EmployeeConverter {
                 .expectedEndTimestamp(history.getExpectedEndTimestamp())
                 .build();
     }
+
     public SalaryPaymentDTO convertToSalaryDTO(SalaryPayment payment) {
         return SalaryPaymentDTO.builder()
                 .id(payment.getId())
@@ -81,8 +84,10 @@ public class EmployeeConverter {
                 .status(task.getStatus())
                 .expectedHours(task.getExpectedHours())
                 .actualHours(task.getActualHours())
+                .totalWorkedMinutes(task.getTotalWorkedMinutes())
                 .startTime(task.getStartTime())
                 .stopTime(task.getStopTime())
+                .lastResumeTime(task.getLastResumeTime())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
                 .build();
@@ -100,6 +105,7 @@ public class EmployeeConverter {
                 .status(profile.getStatus())
                 .profilePicturePath(profile.getProfilePicturePath())
                 .documentPath(profile.getDocumentPath())
+                .totalHoursWorkedLast30Days(profile.getTotalHoursWorkedLast30Days())
                 .build();
     }
 }

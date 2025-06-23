@@ -47,31 +47,45 @@ public class WebSecurityConfig {
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/actuator/health",
-                                "/api/employees/files/**",
-                                "/api/profile/**"
+                                "/api/employees/files/**"
                         ).permitAll()
-                        .requestMatchers(
-                                "/api/employees/**",
-                                "/api/departments/**",
-                                "/api/salaries/**",
-                                "/api/tasks/**"
-                        ).hasRole("ADMIN")
-                        .requestMatchers(
-                                "/api/employee/profile",
-                                "/api/tasks/status",
-                                "/api/salaries/me"
-                        ).hasRole("USER")
+
+                        // Employee endpoints
+                        .requestMatchers("/api/employees").hasRole("ADMIN")
+                        .requestMatchers("/api/employees/**").authenticated()
+
+                        // Task endpoints
+                        .requestMatchers("/api/tasks").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers("/api/tasks/status").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers("/api/tasks/**").authenticated()
+
+                        // Profile endpoints
+                        .requestMatchers("/api/profile/**").authenticated()
+
+                        // Salary endpoints
+                        .requestMatchers("/api/salaries").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers("/api/salaries/**").authenticated()
+
+                        // All other requests
                         .anyRequest().authenticated()
                 );
 
+        // Add JWT filter
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
+    }
+
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(tokenProvider, customUserDetailsService);
     }
 
     @Bean
@@ -100,14 +114,8 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(tokenProvider, customUserDetailsService);
-    }
-
-    @Bean
     public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration config
-    ) throws Exception {
+            AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 

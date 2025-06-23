@@ -9,6 +9,6 @@ public class TaskActionDTO {
     @Schema(description = "Task ID", example = "1")
     private Long taskId;
 
-    @Schema(description = "Action to perform (START, STOP, COMPLETE)", example = "START")
+    @Schema(description = "Action to perform (START, STOP, CONTINUE, COMPLETE)", example = "START")
     private String action;
 }

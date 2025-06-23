@@ -73,6 +73,9 @@ public class EmployeeProfileDTO {
     @Schema(description = "Path to documents", example = "documents/12345_cv.pdf")
     private String documentPath;
 
+    @Schema(description = "total hours worked last 30 days", accessMode = Schema.AccessMode.READ_ONLY)
+    private Double totalHoursWorkedLast30Days = 0.0;
+
     @Schema(description = "List of salary payments")
     private List<SalaryPaymentDTO> salaryPayments;
 

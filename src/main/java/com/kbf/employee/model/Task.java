@@ -50,6 +50,12 @@ public class Task {
     @Column(name = "stop_time")
     private LocalDateTime stopTime;
 
+    @Column(name = "last_resume_time")
+    private LocalDateTime lastResumeTime;
+
+    @Column(name = "total_worked_minutes")
+    private Long totalWorkedMinutes;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -59,13 +65,22 @@ public class Task {
     private LocalDateTime updatedAt;
 
     public enum TaskStatus {
-        PENDING, IN_PROGRESS, COMPLETED, UNCOMPLETED, CANCELLED
+        PENDING,
+        IN_PROGRESS,
+        COMPLETED,
+        INCOMPLETED,
+        CANCELLED
     }
 
     @PreUpdate
     public void calculateActualHours() {
         if (startTime != null && stopTime != null) {
-            this.actualHours = Duration.between(startTime, stopTime).toMinutes() / 60.0;
+            long minutesWorked = Duration.between(startTime, stopTime).toMinutes();
+            if (lastResumeTime != null && stopTime.isAfter(lastResumeTime)) {
+                minutesWorked += Duration.between(lastResumeTime, stopTime).toMinutes();
+            }
+            this.totalWorkedMinutes = minutesWorked;
+            this.actualHours = minutesWorked / 60.0;
         }
     }
 }

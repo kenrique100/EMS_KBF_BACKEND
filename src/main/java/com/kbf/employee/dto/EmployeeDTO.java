@@ -81,6 +81,9 @@ public class EmployeeDTO {
             accessMode = Schema.AccessMode.READ_ONLY)
     private String documentPath;
 
+    @Schema(description = "total hours worked last 30 days", accessMode = Schema.AccessMode.READ_ONLY)
+    private Double totalHoursWorkedLast30Days;
+
     @Schema(description = "Status expiration timestamp", accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime statusExpiration;
 
