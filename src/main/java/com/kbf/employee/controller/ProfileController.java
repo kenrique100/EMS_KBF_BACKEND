@@ -9,12 +9,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Profile", description = "Employee Profile Management API")
 @RestController
@@ -34,5 +34,24 @@ public class ProfileController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<EmployeeProfileDTO> getProfile(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ResponseEntity.ok(employeeService.getEmployeeProfile(userPrincipal.getId()));
+    }
+
+    @Operation(summary = "Update profile picture")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Profile picture updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid file format"),
+            @ApiResponse(responseCode = "403", description = "Forbidden")
+    })
+    @PutMapping(value = "/picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<EmployeeProfileDTO> updateProfilePicture(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestPart("file") MultipartFile file) {
+
+        EmployeeProfileDTO updatedProfile = employeeService.updateProfilePicture(
+                userPrincipal.getId(),
+                file
+        );
+        return ResponseEntity.ok(updatedProfile);
     }
 }

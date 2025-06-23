@@ -12,8 +12,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -102,30 +100,6 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.getEmployeeProfile(id));
     }
 
-    @Operation(summary = "Get employee file")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "File retrieved successfully"),
-            @ApiResponse(responseCode = "404", description = "File not found")
-    })
-    @GetMapping("/files/{filePath:.+}")
-    public ResponseEntity<Resource> getFile(
-            @PathVariable String filePath,
-            @RequestParam(required = false) String type) {
-
-        Resource file = employeeService.loadFile(filePath);
-        HttpHeaders headers = new HttpHeaders();
-
-        if (type != null && type.equals("download")) {
-            headers.setContentDispositionFormData("attachment", filePath);
-        } else {
-            headers.setContentDispositionFormData("inline", filePath);
-        }
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(file);
-    }
-
     @Operation(summary = "Update employee details")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Employee updated successfully"),
@@ -183,6 +157,20 @@ public class EmployeeController {
     @GetMapping("/{id}/status-history")
     public ResponseEntity<List<EmployeeStatusHistoryDTO>> getEmployeeStatusHistory(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.getEmployeeStatusHistory(id));
+    }
+
+    @Operation(summary = "Update employee profile picture (ADMIN)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Profile picture updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid file format"),
+            @ApiResponse(responseCode = "404", description = "Employee not found")
+    })
+    @PutMapping(value = "/{id}/picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EmployeeDTO> updateEmployeeProfilePicture(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file) {
+        return ResponseEntity.ok(employeeService.updateProfilePictureAsDTO(id, file));
     }
 
     private void validateFile(MultipartFile file, String fileType) throws InvalidFileException {

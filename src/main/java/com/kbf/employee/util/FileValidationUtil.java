@@ -24,7 +24,9 @@ public class FileValidationUtil {
     public static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
     public static void validateImageFile(MultipartFile file) throws InvalidFileException {
-        if (file == null || file.isEmpty()) return;
+        if (file == null || file.isEmpty()) {
+            throw new InvalidFileException("Profile picture is required");
+        }
         validateFile(file, "image");
     }
 
@@ -75,6 +77,7 @@ public class FileValidationUtil {
             throw new InvalidFileException("Filename contains invalid path sequence");
         }
     }
+
 
     private static String determineContentTypeFromFilename(String filename) {
         if (filename == null || !filename.contains(".")) {

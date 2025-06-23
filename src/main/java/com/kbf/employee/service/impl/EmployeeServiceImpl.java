@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -242,6 +243,12 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    public EmployeeDTO updateProfilePictureAsDTO(Long employeeId, MultipartFile file) {
+        EmployeeProfileDTO profileDTO = updateProfilePicture(employeeId, file);
+        return employeeConverter.convertProfileToBasicDTO(profileDTO);
+    }
+
+    @Override
     public Resource loadFile(String filePath) {
         return employeeHelper.loadFile(filePath);
     }
@@ -297,6 +304,36 @@ public class EmployeeServiceImpl implements EmployeeService {
             log.info("Auto-reactivated employee: {}", employee.getId());
         });
         employeeRepository.saveAll(toReactivate);
+    }
+
+    @Override
+    public EmployeeProfileDTO updateProfilePicture(Long employeeId, MultipartFile file) {
+        try {
+            // Validate the image file
+            FileValidationUtil.validateImageFile(file);
+
+            // Get the employee
+            Employee employee = employeeRepository.findById(employeeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+            // Store new profile picture and delete old one
+            String newProfilePath = employeeHelper.storeFile(file, "profile");
+            employeeHelper.safeDeleteFile(employee.getProfilePicturePath());
+
+            // Update employee record
+            employee.setProfilePicturePath(newProfilePath);
+            Employee updatedEmployee = employeeRepository.save(employee);
+
+            // Convert to Profile DTO with all details
+            return employeeConverter.convertToProfileDTO(updatedEmployee);
+        } catch (InvalidFileException e) {
+            throw new InvalidRequestException(e.getMessage());
+        }
+    }
+
+    @Override
+    public Optional<Employee> getEmployeeByFilePath(String filePath) {
+        return employeeRepository.findByProfilePicturePathOrDocumentPath(filePath, filePath);
     }
 
     private void purgeTerminatedEmployees(LocalDateTime now) {

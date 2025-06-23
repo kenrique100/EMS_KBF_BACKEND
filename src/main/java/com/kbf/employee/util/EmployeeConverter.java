@@ -87,4 +87,19 @@ public class EmployeeConverter {
                 .updatedAt(task.getUpdatedAt())
                 .build();
     }
+
+    public EmployeeDTO convertProfileToBasicDTO(EmployeeProfileDTO profile) {
+        return EmployeeDTO.builder()
+                .id(profile.getId())
+                .username(profile.getUsername())
+                .name(profile.getName())
+                .email(profile.getEmail())
+                .phoneNumber(profile.getPhoneNumber())
+                .department(profile.getDepartment())
+                .dateOfEmployment(profile.getDateOfEmployment())
+                .status(profile.getStatus())
+                .profilePicturePath(profile.getProfilePicturePath())
+                .documentPath(profile.getDocumentPath())
+                .build();
+    }
 }
