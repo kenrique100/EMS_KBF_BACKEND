@@ -7,6 +7,7 @@ import com.kbf.employee.model.SalaryPayment;
 import com.kbf.employee.repository.EmployeeRepository;
 import com.kbf.employee.repository.SalaryPaymentRepository;
 import com.kbf.employee.service.SalaryService;
+import com.kbf.employee.util.EmployeeConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,8 @@ public class SalaryServiceImpl implements SalaryService {
 
     private final SalaryPaymentRepository salaryPaymentRepository;
     private final EmployeeRepository employeeRepository;
+    private final EmployeeConverter employeeConverter;
+
 
     @Override
     @Transactional
@@ -38,14 +41,14 @@ public class SalaryServiceImpl implements SalaryService {
                 .build();
 
         SalaryPayment savedPayment = salaryPaymentRepository.save(payment);
-        return convertToDTO(savedPayment);
+        return employeeConverter.convertToSalaryDTO(savedPayment);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<SalaryPaymentDTO> getAllSalaryPayments() {
         return salaryPaymentRepository.findAll().stream()
-                .map(this::convertToDTO)
+                .map(employeeConverter::convertToSalaryDTO)
                 .collect(Collectors.toList());
     }
 
@@ -56,7 +59,7 @@ public class SalaryServiceImpl implements SalaryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
 
         return salaryPaymentRepository.findByEmployee(employee).stream()
-                .map(this::convertToDTO)
+                .map(employeeConverter::convertToSalaryDTO)
                 .collect(Collectors.toList());
     }
 
@@ -65,7 +68,7 @@ public class SalaryServiceImpl implements SalaryService {
     public SalaryPaymentDTO getSalaryPaymentById(Long paymentId) {
         SalaryPayment payment = salaryPaymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary payment not found with id: " + paymentId));
-        return convertToDTO(payment);
+        return employeeConverter.convertToSalaryDTO(payment);
     }
 
     @Override
@@ -90,7 +93,7 @@ public class SalaryServiceImpl implements SalaryService {
         }
 
         SalaryPayment updatedPayment = salaryPaymentRepository.save(existingPayment);
-        return convertToDTO(updatedPayment);
+        return employeeConverter.convertToSalaryDTO(updatedPayment);
     }
 
     @Override
@@ -104,18 +107,5 @@ public class SalaryServiceImpl implements SalaryService {
 
     private String generatePaymentReference() {
         return "PAY-" + LocalDate.now().getYear() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-    }
-
-    private SalaryPaymentDTO convertToDTO(SalaryPayment payment) {
-        return SalaryPaymentDTO.builder()
-                .id(payment.getId())
-                .amount(payment.getAmount())
-                .paymentDate(payment.getPaymentDate())
-                .employeeId(payment.getEmployee().getId())
-                .employeeName(payment.getEmployee().getName())
-                .status(payment.getStatus())
-                .paymentReference(payment.getPaymentReference())
-                .createdAt(payment.getCreatedAt())
-                .build();
     }
 }

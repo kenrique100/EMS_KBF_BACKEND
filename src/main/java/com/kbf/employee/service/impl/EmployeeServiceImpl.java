@@ -3,9 +3,7 @@ package com.kbf.employee.service.impl;
 import com.kbf.employee.dto.*;
 import com.kbf.employee.exception.*;
 import com.kbf.employee.model.*;
-import com.kbf.employee.repository.EmployeeRepository;
-import com.kbf.employee.repository.EmployeeStatusHistoryRepository;
-import com.kbf.employee.repository.RoleRepository;
+import com.kbf.employee.repository.*;
 import com.kbf.employee.security.UserPrincipal;
 import com.kbf.employee.service.EmployeeService;
 import com.kbf.employee.util.*;
@@ -34,6 +32,8 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final EmployeeValidator employeeValidator;
     private final EmployeeHelper employeeHelper;
     private final EmployeeConverter employeeConverter;
+    private final SalaryPaymentRepository salaryPaymentRepository;
+    private final TaskRepository taskRepository;
 
     @Override
     @Transactional
@@ -195,6 +195,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public EmployeeProfileDTO getEmployeeProfile(Long id) {
         UserPrincipal userPrincipal = (UserPrincipal) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
@@ -208,6 +209,19 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         EmployeeProfileDTO profile = employeeConverter.convertToProfileDTO(employee);
         profile.setStatusHistory(getEmployeeStatusHistory(id));
+
+        // Add salary payments
+        List<SalaryPaymentDTO> salaries = salaryPaymentRepository.findByEmployee(employee).stream()
+                .map(employeeConverter::convertToSalaryDTO)
+                .collect(Collectors.toList());
+        profile.setSalaryPayments(salaries);
+
+        // Add assigned tasks
+        List<TaskDTO> tasks = taskRepository.findByEmployee(employee).stream()
+                .map(employeeConverter::convertToTaskDTO)
+                .collect(Collectors.toList());
+        profile.setTasks(tasks);
+
         return profile;
     }
 
@@ -218,6 +232,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .map(employeeConverter::convertToHistoryDTO)
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public List<EmployeeDTO> getAllEmployees() {
@@ -272,6 +287,7 @@ public class EmployeeServiceImpl implements EmployeeService {
             employee.setStatusExpiration(null);
             employee.setSuspensionDuration(null);
 
+            // KEEP this for audit purposes
             historyRepository.save(EmployeeStatusHistory.builder()
                     .employee(employee)
                     .status(Employee.EmployeeStatus.ACTIVE)

@@ -62,7 +62,7 @@ public class WebSecurityConfig {
                                 "/api/tasks/**"
                         ).hasRole("ADMIN")
                         .requestMatchers(
-                                "/api/profile/**",
+                                "/api/employee/profile",
                                 "/api/tasks/status",
                                 "/api/salaries/me"
                         ).hasRole("USER")
@@ -77,8 +77,7 @@ public class WebSecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://127.0.0.1:3000"
+                "http://localhost:3000"
         ));
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"

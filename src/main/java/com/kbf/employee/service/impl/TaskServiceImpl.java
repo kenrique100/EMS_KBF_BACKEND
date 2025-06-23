@@ -9,6 +9,7 @@ import com.kbf.employee.model.Task;
 import com.kbf.employee.repository.EmployeeRepository;
 import com.kbf.employee.repository.TaskRepository;
 import com.kbf.employee.service.TaskService;
+import com.kbf.employee.util.EmployeeConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
     private final EmployeeRepository employeeRepository;
+    private final EmployeeConverter employeeConverter;
 
     @Override
     @Transactional
@@ -42,13 +44,13 @@ public class TaskServiceImpl implements TaskService {
                 .build();
 
         Task savedTask = taskRepository.save(task);
-        return convertToDTO(savedTask);
+        return employeeConverter.convertToTaskDTO(savedTask);
     }
 
     @Override
     public List<TaskDTO> getAllTasks() {
         return taskRepository.findAll().stream()
-                .map(this::convertToDTO)
+                .map(employeeConverter::convertToTaskDTO)
                 .collect(Collectors.toList());
     }
 
@@ -58,7 +60,7 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
 
         return taskRepository.findByEmployee(employee).stream()
-                .map(this::convertToDTO)
+                .map(employeeConverter::convertToTaskDTO)
                 .collect(Collectors.toList());
     }
 
@@ -102,7 +104,7 @@ public class TaskServiceImpl implements TaskService {
                 throw new IllegalArgumentException("Invalid action: " + action);
         }
 
-        return convertToDTO(taskRepository.save(task));
+        return employeeConverter.convertToTaskDTO(taskRepository.save(task));
     }
 
     @Override
@@ -130,7 +132,7 @@ public class TaskServiceImpl implements TaskService {
         }
 
         Task updatedTask = taskRepository.save(task);
-        return convertToDTO(updatedTask);
+        return employeeConverter.convertToTaskDTO(updatedTask);
     }
 
     @Override
@@ -146,24 +148,6 @@ public class TaskServiceImpl implements TaskService {
     public TaskDTO getTaskById(Long taskId) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
-        return convertToDTO(task);
-    }
-
-    private TaskDTO convertToDTO(Task task) {
-        return TaskDTO.builder()
-                .id(task.getId())
-                .title(task.getTitle())
-                .description(task.getDescription())
-                .deadline(task.getDeadline())
-                .employeeId(task.getEmployee().getId())
-                .employeeName(task.getEmployee().getName())
-                .status(task.getStatus())
-                .expectedHours(task.getExpectedHours())
-                .actualHours(task.getActualHours())
-                .startTime(task.getStartTime())
-                .stopTime(task.getStopTime())
-                .createdAt(task.getCreatedAt())
-                .updatedAt(task.getUpdatedAt())
-                .build();
+        return employeeConverter.convertToTaskDTO(task);
     }
 }

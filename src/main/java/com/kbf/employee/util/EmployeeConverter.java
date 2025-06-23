@@ -3,6 +3,8 @@ package com.kbf.employee.util;
 import com.kbf.employee.dto.*;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.model.EmployeeStatusHistory;
+import com.kbf.employee.model.SalaryPayment;
+import com.kbf.employee.model.Task;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -53,6 +55,36 @@ public class EmployeeConverter {
                 .allocatedDuration(history.getAllocatedDuration())
                 .actualDuration(history.getActualDuration())
                 .expectedEndTimestamp(history.getExpectedEndTimestamp())
+                .build();
+    }
+    public SalaryPaymentDTO convertToSalaryDTO(SalaryPayment payment) {
+        return SalaryPaymentDTO.builder()
+                .id(payment.getId())
+                .amount(payment.getAmount())
+                .paymentDate(payment.getPaymentDate())
+                .employeeId(payment.getEmployee().getId())
+                .employeeName(payment.getEmployee().getName())
+                .status(payment.getStatus())
+                .paymentReference(payment.getPaymentReference())
+                .createdAt(payment.getCreatedAt())
+                .build();
+    }
+
+    public TaskDTO convertToTaskDTO(Task task) {
+        return TaskDTO.builder()
+                .id(task.getId())
+                .title(task.getTitle())
+                .description(task.getDescription())
+                .deadline(task.getDeadline())
+                .employeeId(task.getEmployee().getId())
+                .employeeName(task.getEmployee().getName())
+                .status(task.getStatus())
+                .expectedHours(task.getExpectedHours())
+                .actualHours(task.getActualHours())
+                .startTime(task.getStartTime())
+                .stopTime(task.getStopTime())
+                .createdAt(task.getCreatedAt())
+                .updatedAt(task.getUpdatedAt())
                 .build();
     }
 }

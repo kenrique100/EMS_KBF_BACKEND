@@ -175,6 +175,16 @@ public class EmployeeController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Get employee status history")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Status history retrieved"),
+            @ApiResponse(responseCode = "404", description = "Employee not found")
+    })
+    @GetMapping("/{id}/status-history")
+    public ResponseEntity<List<EmployeeStatusHistoryDTO>> getEmployeeStatusHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(employeeService.getEmployeeStatusHistory(id));
+    }
+
     private void validateFile(MultipartFile file, String fileType) throws InvalidFileException {
         if (file != null && !file.isEmpty()) {
             if ("profile".equals(fileType)) {
