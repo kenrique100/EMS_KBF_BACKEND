@@ -1,4 +1,4 @@
-package com.kbf.employee.dto;
+package com.kbf.employee.dto.response;
 
 import com.kbf.employee.model.Employee;
 import io.swagger.v3.oas.annotations.media.Schema;

@@ -1,6 +1,6 @@
 package com.kbf.employee.runner;
 
-import com.kbf.employee.model.Department;
+import com.kbf.employee.model.enums.Department;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.model.Role;
 import com.kbf.employee.model.Role.RoleName;

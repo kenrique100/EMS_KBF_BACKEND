@@ -1,6 +1,10 @@
 package com.kbf.employee.controller;
 
-import com.kbf.employee.dto.*;
+import com.kbf.employee.dto.request.EmployeeDTO;
+import com.kbf.employee.dto.request.EmployeeStatusUpdateDTO;
+import com.kbf.employee.dto.request.EmployeeUpdateDTO;
+import com.kbf.employee.dto.response.EmployeeProfileDTO;
+import com.kbf.employee.dto.response.EmployeeStatusHistoryDTO;
 import com.kbf.employee.exception.InvalidFileException;
 import com.kbf.employee.service.EmployeeService;
 import com.kbf.employee.util.FileValidationUtil;
@@ -12,9 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -172,6 +174,7 @@ public class EmployeeController {
             @RequestPart("file") MultipartFile file) {
         return ResponseEntity.ok(employeeService.updateProfilePictureAsDTO(id, file));
     }
+
 
     private void validateFile(MultipartFile file, String fileType) throws InvalidFileException {
         if (file != null && !file.isEmpty()) {

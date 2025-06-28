@@ -1,6 +1,6 @@
-package com.kbf.employee.dto;
+package com.kbf.employee.dto.request;
 
-import com.kbf.employee.model.Department;
+import com.kbf.employee.model.enums.Department;
 import com.kbf.employee.model.Employee;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;

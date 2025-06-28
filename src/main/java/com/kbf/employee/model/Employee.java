@@ -1,6 +1,7 @@
 package com.kbf.employee.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.kbf.employee.model.enums.Department;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

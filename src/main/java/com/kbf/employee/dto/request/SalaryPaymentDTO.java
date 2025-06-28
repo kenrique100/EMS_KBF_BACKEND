@@ -1,9 +1,8 @@
-package com.kbf.employee.dto;
+package com.kbf.employee.dto.request;
 
 import com.kbf.employee.model.SalaryPayment;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import lombok.Builder;
 import lombok.Data;

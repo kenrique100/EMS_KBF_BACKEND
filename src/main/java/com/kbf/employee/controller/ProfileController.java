@@ -1,6 +1,6 @@
 package com.kbf.employee.controller;
 
-import com.kbf.employee.dto.EmployeeProfileDTO;
+import com.kbf.employee.dto.response.EmployeeProfileDTO;
 import com.kbf.employee.security.UserPrincipal;
 import com.kbf.employee.service.EmployeeService;
 import io.swagger.v3.oas.annotations.Operation;

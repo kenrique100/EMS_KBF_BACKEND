@@ -1,6 +1,8 @@
 package com.kbf.employee.service;
 
-import com.kbf.employee.dto.*;
+import com.kbf.employee.dto.request.*;
+import com.kbf.employee.dto.response.EmployeeProfileDTO;
+import com.kbf.employee.dto.response.EmployeeStatusHistoryDTO;
 import com.kbf.employee.model.Employee;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
