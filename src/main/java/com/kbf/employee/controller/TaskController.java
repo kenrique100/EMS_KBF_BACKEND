@@ -126,4 +126,18 @@ public class TaskController {
     public ResponseEntity<ProductivityStatsDTO> getProductivityStats(@PathVariable Long employeeId) {
         return ResponseEntity.ok(taskService.getProductivityStats(employeeId));
     }
+    @Operation(summary = "Validate a completed task")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Task validated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Task not found")
+    })
+    @PostMapping("/validate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<TaskDTO> validateTask(
+            @Valid @RequestBody TaskValidationDTO validationDTO,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(taskService.validateTask(validationDTO, userPrincipal.getId()));
+    }
 }

@@ -1,9 +1,6 @@
 package com.kbf.employee.service;
 
-import com.kbf.employee.dto.ProductivityStatsDTO;
-import com.kbf.employee.dto.TaskDTO;
-import com.kbf.employee.dto.TaskActionDTO;
-
+import com.kbf.employee.dto.*;
 import java.util.List;
 
 public interface TaskService {
@@ -15,7 +12,9 @@ public interface TaskService {
     void deleteTask(Long taskId);
     TaskDTO getTaskById(Long taskId);
     void processExpiredTasks();
+    void processUnvalidatedTasks();
     void updateDailyProductivity();
     void resetProductivityMetrics();
     ProductivityStatsDTO getProductivityStats(Long employeeId);
+    TaskDTO validateTask(TaskValidationDTO validationDTO, Long adminId);
 }

@@ -89,4 +89,11 @@ public class EmployeeDTO {
 
     @Schema(description = "Suspension duration", accessMode = Schema.AccessMode.READ_ONLY)
     private Duration suspensionDuration;
+
+    @Schema(description = "Timestamp when the employee was created", example = "2023-01-15T09:30:00")
+    private LocalDateTime createdAt;
+
+    @Schema(description = "Timestamp when the employee was last updated", example = "2023-06-27T15:45:00")
+    private LocalDateTime updatedAt;
+
 }

@@ -56,6 +56,12 @@ public class Task {
     @Column(name = "total_worked_minutes")
     private Long totalWorkedMinutes;
 
+    @Column(name = "is_validated")
+    private Boolean isValidated = false;
+
+    @Column(name = "validation_time")
+    private LocalDateTime validationTime;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

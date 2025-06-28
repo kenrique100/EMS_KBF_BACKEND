@@ -25,6 +25,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             LocalDateTime timestamp
     );
 
+    List<Employee> findByStatus(Employee.EmployeeStatus status);
+
     Optional<Employee> findByProfilePicturePathOrDocumentPath(
             String profilePicturePath,
             String documentPath

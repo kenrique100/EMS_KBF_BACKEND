@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.Set;
 
 @Slf4j
@@ -32,6 +33,9 @@ public class EmployeeHelper {
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .dateOfEmployment(dto.getDateOfEmployment())
                 .status(Employee.EmployeeStatus.ACTIVE)
+                .workingDaysCount(0)
+                .totalHoursWorkedLast30Days(0.0)
+                .currentPeriodStartDate(LocalDate.now())
                 .build();
     }
 

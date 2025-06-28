@@ -30,4 +30,31 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             LocalDateTime start,
             LocalDateTime end
     );
+
+    List<Task> findByStatusAndIsValidatedAndStopTimeBetween(
+            Task.TaskStatus status,
+            Boolean isValidated,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+    List<Task> findByEmployeeAndIsValidated(Employee employee, Boolean isValidated);
+
+    @Query("SELECT t FROM Task t WHERE " +
+            "t.employee = :employee AND " +
+            "t.status = :status AND " +
+            "t.validationTime BETWEEN :start AND :end")
+    List<Task> findByEmployeeAndStatusAndValidationTimeBetween(
+            @Param("employee") Employee employee,
+            @Param("status") Task.TaskStatus status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("SELECT t FROM Task t WHERE " +
+            "t.validationTime BETWEEN :start AND :end")
+    List<Task> findByValidationTimeBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

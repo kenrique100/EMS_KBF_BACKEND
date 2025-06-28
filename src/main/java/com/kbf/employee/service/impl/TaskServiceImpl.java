@@ -1,12 +1,9 @@
 package com.kbf.employee.service.impl;
 
 import com.kbf.employee.dto.*;
-import com.kbf.employee.exception.AccessDeniedException;
-import com.kbf.employee.exception.ResourceNotFoundException;
-import com.kbf.employee.model.Employee;
-import com.kbf.employee.model.Task;
-import com.kbf.employee.repository.EmployeeRepository;
-import com.kbf.employee.repository.TaskRepository;
+import com.kbf.employee.exception.*;
+import com.kbf.employee.model.*;
+import com.kbf.employee.repository.*;
 import com.kbf.employee.service.TaskService;
 import com.kbf.employee.util.EmployeeConverter;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +41,7 @@ public class TaskServiceImpl implements TaskService {
                 .status(Task.TaskStatus.PENDING)
                 .expectedHours(taskDTO.getExpectedHours())
                 .totalWorkedMinutes(0L)
+                .isValidated(false)
                 .build();
 
         Task savedTask = taskRepository.save(task);
@@ -131,9 +129,37 @@ public class TaskServiceImpl implements TaskService {
         updateWorkedTime(task);
     }
 
+    @Override
+    @Transactional
+    public TaskDTO validateTask(TaskValidationDTO validationDTO, Long adminId) {
+        Task task = taskRepository.findById(validationDTO.getTaskId())
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+
+        if (task.getStatus() != Task.TaskStatus.COMPLETED) {
+            throw new InvalidOperationException("Only completed tasks can be validated");
+        }
+
+        Employee admin = employeeRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
+
+        if (admin.getRoles().stream().noneMatch(role -> role.getName() == Role.RoleName.ROLE_ADMIN)) {
+            throw new AccessDeniedException("Only admins can validate tasks");
+        }
+
+        task.setIsValidated(validationDTO.getApprove());
+        task.setValidationTime(LocalDateTime.now());
+
+        if (validationDTO.getApprove()) {
+            updateEmployeeProductivity(task.getEmployee(), task.getValidationTime().toLocalDate());
+        } else {
+            task.setStatus(Task.TaskStatus.INCOMPLETED);
+        }
+
+        return employeeConverter.convertToTaskDTO(taskRepository.save(task));
+    }
 
     @Override
-    @Scheduled(cron = "0 0 0 * * ?") // Runs at midnight every day
+    @Scheduled(cron = "0 */5 * * * *")
     public void processExpiredTasks() {
         LocalDate yesterday = LocalDate.now().minusDays(1);
         Date yesterdayDate = Date.from(yesterday.atStartOfDay(ZoneId.systemDefault()).toInstant());
@@ -147,51 +173,77 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Scheduled(cron = "0 */5 * * * *")
+    public void processUnvalidatedTasks() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        LocalDateTime startOfDay = yesterday.atStartOfDay();
+        LocalDateTime endOfDay = yesterday.atTime(23, 59, 59);
+
+        List<Task> unvalidatedTasks = taskRepository.findByStatusAndIsValidatedAndStopTimeBetween(
+                Task.TaskStatus.COMPLETED,
+                false,
+                startOfDay,
+                endOfDay
+        );
+
+        unvalidatedTasks.forEach(task -> {
+            task.setStatus(Task.TaskStatus.INCOMPLETED);
+            taskRepository.save(task);
+            log.info("Marked task {} as INCOMPLETED (not validated by deadline)", task.getId());
+        });
+    }
+
+    @Override
     public ProductivityStatsDTO getProductivityStats(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
 
-        double dailyAverage = employee.getWorkingDaysCount() > 0
-                ? employee.getTotalHoursWorkedLast30Days() / employee.getWorkingDaysCount()
-                : 0.0;
+        List<Task> validatedTasks = taskRepository.findByEmployeeAndIsValidated(employee, true);
+        double totalHoursWorked = calculateTotalHours(validatedTasks);
+        int workingDays = getDistinctWorkingDays(validatedTasks);
+        double dailyAverage = workingDays > 0 ? totalHoursWorked / workingDays : 0.0;
 
         return ProductivityStatsDTO.builder()
-                .totalHoursWorked(employee.getTotalHoursWorkedLast30Days())
+                .totalHoursWorked(totalHoursWorked)
                 .dailyAverage(dailyAverage)
-                .workingDays(employee.getWorkingDaysCount())
+                .workingDays(workingDays)
                 .periodStartDate(employee.getCurrentPeriodStartDate())
                 .periodEndDate(employee.getCurrentPeriodStartDate().plusDays(29))
                 .productivityPercentage(calculateProductivityPercentage(employee))
                 .build();
     }
 
+    private int getDistinctWorkingDays(List<Task> tasks) {
+        return (int) tasks.stream()
+                .map(t -> t.getStopTime().toLocalDate())
+                .distinct()
+                .count();
+    }
+
+    private double calculateTotalHours(List<Task> tasks) {
+        return tasks.stream()
+                .mapToDouble(t -> t.getActualHours() != null ? t.getActualHours() : 0)
+                .sum();
+    }
+
     private Double calculateProductivityPercentage(Employee employee) {
-        // Get all tasks assigned in current period
-        LocalDateTime periodStart = employee.getCurrentPeriodStartDate().atStartOfDay();
-        LocalDateTime periodEnd = periodStart.plusDays(30);
+        List<Task> validatedTasks = taskRepository.findByEmployeeAndIsValidated(employee, true);
 
-        List<Task> periodTasks = taskRepository.findByEmployeeAndCreatedAtBetween(
-                employee,
-                periodStart,
-                periodEnd
-        );
-
-        double totalExpectedHours = periodTasks.stream()
+        double totalExpectedHours = validatedTasks.stream()
                 .mapToDouble(t -> t.getExpectedHours() != null ? t.getExpectedHours() : 0)
                 .sum();
 
-        if (totalExpectedHours == 0) return 0.0;
+        double totalActualHours = employee.getTotalHoursWorkedLast30Days() != null ?
+                employee.getTotalHoursWorkedLast30Days() : 0;
 
-        return (employee.getTotalHoursWorkedLast30Days() / totalExpectedHours) * 100;
+        return totalExpectedHours == 0 ? 0.0 : (totalActualHours / totalExpectedHours) * 100;
     }
 
     private void updateWorkedTime(Task task) {
-        // Only recalculate if task was actually worked on
         if (task.getStartTime() == null || task.getStopTime() == null) {
             return;
         }
 
-        // Check if we already have up-to-date calculation
         if (isCalculationUpToDate(task)) {
             return;
         }
@@ -208,15 +260,20 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private long calculateTotalMinutesWorked(Task task) {
-        long minutesWorked = Duration.between(task.getStartTime(), task.getStopTime()).toMinutes();
-        if (task.getLastResumeTime() != null && task.getStopTime().isAfter(task.getLastResumeTime())) {
-            minutesWorked += Duration.between(task.getLastResumeTime(), task.getStopTime()).toMinutes();
+        if (task.getStartTime() == null || task.getStopTime() == null) {
+            return 0;
         }
-        return minutesWorked;
+
+        Duration duration = Duration.between(task.getStartTime(), task.getStopTime());
+        long seconds = duration.getSeconds();
+        return (seconds / 60) + (seconds % 60 >= 30 ? 1 : 0);
     }
 
-    private List<Task> getCompletedTasksForDay(Employee employee, LocalDateTime startOfDay, LocalDateTime endOfDay) {
-        return taskRepository.findByEmployeeAndStatusAndStopTimeBetween(
+    private List<Task> getCompletedTasksForDay(Employee employee, LocalDate date) {
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(23, 59, 59);
+
+        return taskRepository.findByEmployeeAndStatusAndValidationTimeBetween(
                 employee,
                 Task.TaskStatus.COMPLETED,
                 startOfDay,
@@ -224,59 +281,59 @@ public class TaskServiceImpl implements TaskService {
         );
     }
 
-    private double calculateDailyHours(List<Task> completedTasks) {
-        return completedTasks.stream()
-                .mapToDouble(t -> t.getActualHours() != null ? t.getActualHours() : 0)
-                .sum();
+    private void updateEmployeeProductivity(Employee employee, LocalDate date) {
+        if (!date.equals(employee.getLastProductivityUpdate())) {
+            List<Task> completedTasks = getCompletedTasksForDay(employee, date);
+            double dailyHours = calculateTotalHours(completedTasks);
+
+            if (dailyHours > 0) {
+                employee.setWorkingDaysCount(employee.getWorkingDaysCount() + 1);
+                employee.setTotalHoursWorkedLast30Days(
+                        employee.getTotalHoursWorkedLast30Days() + dailyHours
+                );
+                employee.setLastProductivityUpdate(date);
+                employeeRepository.save(employee);
+            }
+        }
     }
 
     @Override
-    @Scheduled(cron = "0 0 0 * * ?")
+    @Scheduled(cron = "0 */5 * * * *")
     public void updateDailyProductivity() {
         LocalDate yesterday = LocalDate.now().minusDays(1);
-        LocalDateTime startOfDay = yesterday.atStartOfDay();
-        LocalDateTime endOfDay = yesterday.atTime(23, 59, 59);
+        List<Employee> activeEmployees = employeeRepository.findByStatus(Employee.EmployeeStatus.ACTIVE);
 
-        List<Employee> employeesWithTasks = employeeRepository.findEmployeesWithTasksDue(yesterday);
-        log.info("Updating daily productivity for {} employees with tasks due on {}",
-                employeesWithTasks.size(), yesterday);
+        activeEmployees.forEach(employee -> {
+            if (!yesterday.equals(employee.getLastProductivityUpdate())) {
+                List<Task> completedTasks = getCompletedTasksForDay(employee, yesterday);
+                double dailyHours = calculateTotalHours(completedTasks);
 
-        employeesWithTasks.forEach(employee -> updateEmployeeProductivity(employee, startOfDay, endOfDay));
-
-    }
-
-    private void updateEmployeeProductivity(Employee employee, LocalDateTime startOfDay, LocalDateTime endOfDay) {
-        employee.setWorkingDaysCount(employee.getWorkingDaysCount() + 1);
-        employee.setTotalProductiveDays(employee.getTotalProductiveDays() + 1);
-
-        List<Task> completedTasks = getCompletedTasksForDay(employee, startOfDay, endOfDay);
-        double dailyHours = calculateDailyHours(completedTasks);
-
-        employee.setTotalHoursWorkedLast30Days(
-                employee.getTotalHoursWorkedLast30Days() + dailyHours
-        );
-
-        employeeRepository.save(employee);
-        log.debug("Updated productivity for employee {}: +{} hours (total: {})",
-                employee.getId(), dailyHours, employee.getTotalHoursWorkedLast30Days());
+                if (dailyHours > 0) {
+                    employee.setWorkingDaysCount(employee.getWorkingDaysCount() + 1);
+                    employee.setTotalHoursWorkedLast30Days(
+                            employee.getTotalHoursWorkedLast30Days() + dailyHours
+                    );
+                    employee.setLastProductivityUpdate(yesterday);
+                    employeeRepository.save(employee);
+                }
+            }
+        });
     }
 
     @Override
-    @Scheduled(cron = "0 0 0 1 * ?")
+    @Scheduled(cron = "0 */5 * * * *")
     public void resetProductivityMetrics() {
         List<Employee> allEmployees = employeeRepository.findAll();
 
         log.info("Resetting productivity metrics for {} employees", allEmployees.size());
-        allEmployees.forEach(this::resetEmployeeProductivity);
+        allEmployees.forEach(employee -> {
+            employee.setTotalHoursWorkedLast30Days(0.0);
+            employee.setWorkingDaysCount(0);
+            employee.setLastProductivityResetDate(LocalDate.now());
+            employee.setCurrentPeriodStartDate(LocalDate.now());
+            employeeRepository.save(employee);
+        });
         log.info("Completed resetting productivity metrics");
-    }
-
-    private void resetEmployeeProductivity(Employee employee) {
-        employee.setTotalHoursWorkedLast30Days(0.0);
-        employee.setWorkingDaysCount(0);
-        employee.setLastProductivityResetDate(LocalDate.now());
-        employee.setCurrentPeriodStartDate(LocalDate.now());
-        employeeRepository.save(employee);
     }
 
     @Override

@@ -53,7 +53,7 @@ public class Employee {
     @Column(name = "document_path")
     private String documentPath;
 
-    @Column(name = "total_hours_worked_last_30_days")
+    @Column(name = "total_hours_worked_last_30_days", columnDefinition = "double default 0.0")
     private Double totalHoursWorkedLast30Days = 0.0;
 
     @Enumerated(EnumType.STRING)
@@ -72,17 +72,20 @@ public class Employee {
     @Column(name = "termination_timestamp")
     private LocalDateTime terminationTimestamp;
 
-    @Column(name = "working_days_count")
+    @Column(nullable = false, columnDefinition = "integer default 0")
     private Integer workingDaysCount = 0;
 
     @Column(name = "last_productivity_reset_date")
     private LocalDate lastProductivityResetDate;
 
-    @Column(name = "current_period_start_date")
-    private LocalDate currentPeriodStartDate;
+    @Column(name = "current_period_start_date", columnDefinition = "date default CURRENT_DATE")
+    private LocalDate currentPeriodStartDate = LocalDate.now();
 
-    @Column(name = "total_productive_days")
+    @Column(name = "total_productive_days", columnDefinition = "integer default 0")
     private Integer totalProductiveDays = 0;
+
+    @Column(name = "last_productivity_update")
+    private LocalDate lastProductivityUpdate;
 
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EmployeeStatusHistory> statusHistory = new ArrayList<>();
@@ -102,7 +105,22 @@ public class Employee {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-
+    @PrePersist
+    @PreUpdate
+    private void initializeFields() {
+        if (this.workingDaysCount == null) {
+            this.workingDaysCount = 0;
+        }
+        if (this.totalHoursWorkedLast30Days == null) {
+            this.totalHoursWorkedLast30Days = 0.0;
+        }
+        if (this.currentPeriodStartDate == null) {
+            this.currentPeriodStartDate = LocalDate.now();
+        }
+        if (this.totalProductiveDays == null) {
+            this.totalProductiveDays = 0;
+        }
+    }
 
     public enum EmployeeStatus {
         ACTIVE, INACTIVE, ON_LEAVE, SUSPENDED, TERMINATED

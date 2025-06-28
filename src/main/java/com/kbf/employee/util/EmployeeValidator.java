@@ -74,4 +74,13 @@ public class EmployeeValidator {
             throw new InvalidRequestException("Suspension cannot exceed 30 days");
         }
     }
+
+    public void validateProductivityData(Employee employee) {
+        if (employee.getWorkingDaysCount() < 0) {
+            throw new InvalidDataException("Working days count cannot be negative");
+        }
+        if (employee.getTotalHoursWorkedLast30Days() < 0) {
+            throw new InvalidDataException("Total hours worked cannot be negative");
+        }
+    }
 }

@@ -61,4 +61,11 @@ public class TaskDTO {
 
     @Schema(description = "Last update timestamp", example = "2023-06-15T17:00:00", accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime updatedAt;
+
+    @Schema(description = "Whether the task was validated by admin", example = "false")
+    private Boolean isValidated;
+
+    @Schema(description = "When the task was validated", example = "2023-06-15T17:00:00")
+    private LocalDateTime validationTime;
+
 }

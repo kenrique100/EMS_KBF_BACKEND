@@ -24,6 +24,8 @@ public class EmployeeConverter {
                 .profilePicturePath(employee.getProfilePicturePath())
                 .documentPath(employee.getDocumentPath())
                 .totalHoursWorkedLast30Days(employee.getTotalHoursWorkedLast30Days())
+                .createdAt(employee.getCreatedAt()) // <-- Ensure this is set
+                .updatedAt(employee.getUpdatedAt())
                 .build();
     }
 
@@ -88,6 +90,8 @@ public class EmployeeConverter {
                 .startTime(task.getStartTime())
                 .stopTime(task.getStopTime())
                 .lastResumeTime(task.getLastResumeTime())
+                .isValidated(task.getIsValidated())
+                .validationTime(task.getValidationTime())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
                 .build();

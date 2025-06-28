@@ -171,4 +171,16 @@ public class GlobalExceptionHandler {
                 )
         );
     }
+
+    @ExceptionHandler(InvalidDataException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidData(
+            InvalidDataException ex, WebRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                ErrorResponse.create(
+                        HttpStatus.BAD_REQUEST,
+                        Objects.toString(ex.getMessage(), "Invalid data"),
+                        request.getDescription(false)
+                )
+        );
+    }
 }
