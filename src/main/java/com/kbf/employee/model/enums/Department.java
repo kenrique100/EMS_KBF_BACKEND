@@ -1,4 +1,4 @@
-package com.kbf.employee.model;
+package com.kbf.employee.model.enums;
 
 
 public enum Department {

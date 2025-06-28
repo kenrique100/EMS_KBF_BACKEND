@@ -1,4 +1,4 @@
-package com.kbf.employee.dto;
+package com.kbf.employee.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,4 +1,4 @@
-package com.kbf.employee.dto;
+package com.kbf.employee.dto.request;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

@@ -1,6 +1,10 @@
 package com.kbf.employee.service;
 
-import com.kbf.employee.dto.SalaryPaymentDTO;
+
+
+import com.kbf.employee.dto.request.SalaryPaymentDTO;
+import com.kbf.employee.dto.request.SalaryReceiptDTO;
+
 import java.util.List;
 
 public interface SalaryService {
@@ -10,4 +14,6 @@ public interface SalaryService {
     SalaryPaymentDTO getSalaryPaymentById(Long paymentId);
     SalaryPaymentDTO updateSalaryPayment(Long paymentId, SalaryPaymentDTO salaryPaymentDTO);
     void deleteSalaryPayment(Long paymentId);
+    SalaryReceiptDTO generateSalaryReceipt(Long paymentId);
+    byte[] generatePdfReceipt(Long paymentId);
 }

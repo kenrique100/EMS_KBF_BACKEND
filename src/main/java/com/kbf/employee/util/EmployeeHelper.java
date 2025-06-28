@@ -1,7 +1,7 @@
 package com.kbf.employee.util;
 
-import com.kbf.employee.dto.EmployeeDTO;
-import com.kbf.employee.dto.EmployeeUpdateDTO;
+import com.kbf.employee.dto.request.EmployeeDTO;
+import com.kbf.employee.dto.request.EmployeeUpdateDTO;
 import com.kbf.employee.exception.FileStorageException;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.model.Role;

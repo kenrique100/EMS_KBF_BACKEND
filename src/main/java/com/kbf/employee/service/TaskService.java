@@ -1,6 +1,10 @@
 package com.kbf.employee.service;
 
-import com.kbf.employee.dto.*;
+import com.kbf.employee.dto.request.TaskActionDTO;
+import com.kbf.employee.dto.request.TaskDTO;
+import com.kbf.employee.dto.request.TaskValidationDTO;
+import com.kbf.employee.dto.response.ProductivityStatsDTO;
+
 import java.util.List;
 
 public interface TaskService {

@@ -1,10 +1,10 @@
 package com.kbf.employee.util;
 
-import com.kbf.employee.dto.EmployeeDTO;
-import com.kbf.employee.dto.EmployeeStatusUpdateDTO;
-import com.kbf.employee.dto.EmployeeUpdateDTO;
+import com.kbf.employee.dto.request.EmployeeDTO;
+import com.kbf.employee.dto.request.EmployeeStatusUpdateDTO;
+import com.kbf.employee.dto.request.EmployeeUpdateDTO;
 import com.kbf.employee.exception.*;
-import com.kbf.employee.model.Department;
+import com.kbf.employee.model.enums.Department;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
