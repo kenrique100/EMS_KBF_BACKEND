@@ -74,7 +74,7 @@ public class Task {
         PENDING,
         IN_PROGRESS,
         COMPLETED,
-        INCOMPLETED,
+        UNCOMPLETED,
         CANCELLED
     }
 
