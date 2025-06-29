@@ -16,11 +16,15 @@ import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StreamUtils;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -41,7 +45,6 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
             document.addPage(page);
 
             try (PDPageContentStream content = new PDPageContentStream(document, page)) {
-
                 drawWatermark(document, content, page);
                 drawHeader(document, content, page);
                 drawTitle(content, title);
@@ -83,9 +86,11 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
     }
 
     private void drawHeader(PDDocument document, PDPageContentStream content, PDPage page) throws IOException {
-        PDImageXObject logo = PDImageXObject.createFromFile(
-                new ClassPathResource("static/images/kombe.png").getFile().getAbsolutePath(), document
-        );
+        // Load logo using classpath resource
+        PDImageXObject logo = loadImageFromResources(document, "static/images/kombe.png");
+        if (logo == null) {
+            throw new IOException("Logo image not found");
+        }
 
         float pageWidth = page.getMediaBox().getWidth();
         float pageHeight = page.getMediaBox().getHeight();
@@ -122,6 +127,14 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
         content.stroke();
     }
 
+    private PDImageXObject loadImageFromResources(PDDocument document, String resourcePath) throws IOException {
+        try (InputStream is = new ClassPathResource(resourcePath).getInputStream()) {
+            byte[] imageBytes = StreamUtils.copyToByteArray(is);
+            return LosslessFactory.createFromImage(document, ImageIO.read(new ByteArrayInputStream(imageBytes)));
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     private void drawTitle(PDPageContentStream content, String title) throws IOException {
         float fontSize = 18f;
@@ -130,13 +143,12 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
         float startX = (PDRectangle.A4.getWidth() - titleWidth) / 2;
 
         content.beginText();
-        content.setNonStrokingColor(new Color(0, 102, 204)); // Blue
+        content.setNonStrokingColor(new Color(0, 51, 102)); //dark Blue
         content.setFont(font, fontSize);
         content.newLineAtOffset(startX, 640);
         content.showText(title);
         content.endText();
     }
-
 
     private void drawEmployeeInfo(PDPageContentStream content, SalaryReceiptDTO receipt) throws IOException {
         float yStart = 600;
@@ -149,7 +161,7 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
 
         // Header
         content.beginText();
-        content.setNonStrokingColor(new Color(0, 51, 102)); // dark blue
+        content.setNonStrokingColor(new Color(0, 51, 102)); //dark Blue
         content.setFont(PDType1Font.HELVETICA_BOLD, 12);
         content.newLineAtOffset(MARGIN, yStart + 10);
         content.showText("EMPLOYEE INFORMATION");
@@ -170,7 +182,6 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
         content.showText("Employment Date: " + receipt.getEmployee().getEmploymentDate().format(DATE_FORMATTER));
         content.endText();
     }
-
 
     private void drawSalaryDetails(PDPageContentStream content, SalaryReceiptDTO receipt) throws IOException {
         float yStart = 480;
@@ -204,7 +215,6 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
         content.endText();
     }
 
-
     private void drawProductivitySummary(PDPageContentStream content, SalaryReceiptDTO receipt) throws IOException {
         float yStart = 360;
         float blockHeight = 90;
@@ -236,7 +246,6 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
         content.endText();
     }
 
-
     private void drawBarcode(PDDocument document, PDPageContentStream content, String receiptNumber)
             throws IOException, WriterException {
         QRCodeWriter qrCodeWriter = new QRCodeWriter();
@@ -256,7 +265,6 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
         content.endText();
     }
 
-
     private void drawFooter(PDDocument document, PDPageContentStream content, PDPage page) throws IOException {
         float pageWidth = page.getMediaBox().getWidth();
 
@@ -267,41 +275,33 @@ public class ReceiptGeneratorServiceImpl implements ReceiptGeneratorService {
         content.stroke();
 
         // Signature image (bottom-right)
-        PDImageXObject signature = PDImageXObject.createFromFile(
-                new ClassPathResource("static/images/signature.png").getFile().getAbsolutePath(), document
-        );
-        float signatureHeight = 40f;
-        float signatureWidth = signature.getWidth() * (signatureHeight / signature.getHeight());
-        float sigX = pageWidth - MARGIN - signatureWidth;
-        float sigY = 70;
-        content.drawImage(signature, sigX, sigY, signatureWidth, signatureHeight);
+        PDImageXObject signature = loadImageFromResources(document, "static/images/signature.png");
+        if (signature != null) {
+            float signatureHeight = 40f;
+            float signatureWidth = signature.getWidth() * (signatureHeight / signature.getHeight());
+            float sigX = pageWidth - MARGIN - signatureWidth;
+            float sigY = 70;
+            content.drawImage(signature, sigX, sigY, signatureWidth, signatureHeight);
+        }
 
         // Signature label
         content.beginText();
         content.setFont(PDType1Font.HELVETICA_BOLD, 9);
-        content.newLineAtOffset(sigX, sigY - 12);
+        content.newLineAtOffset(pageWidth - MARGIN - 100, 70 - 12);
         content.showText("HR Manager");
         content.endText();
 
         // Footer text - centered at bottom
         String line1 = "Document generated on: " + LocalDate.now().format(DATE_FORMATTER);
-        String line2 = "This is a computer-generated document. No physical signature is required.";
         PDType1Font font = PDType1Font.HELVETICA_OBLIQUE;
         float fontSize = 8f;
 
         float textWidth1 = font.getStringWidth(line1) / 1000 * fontSize;
-        float textWidth2 = font.getStringWidth(line2) / 1000 * fontSize;
 
         content.beginText();
         content.setFont(font, fontSize);
         content.newLineAtOffset((pageWidth - textWidth1) / 2, 60);
         content.showText(line1);
-        content.endText();
-
-        content.beginText();
-        content.setFont(PDType1Font.HELVETICA, fontSize);
-        content.newLineAtOffset((pageWidth - textWidth2) / 2, 48);
-        content.showText(line2);
         content.endText();
     }
 }

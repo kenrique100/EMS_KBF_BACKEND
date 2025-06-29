@@ -155,7 +155,7 @@ public class TaskServiceImpl implements TaskService {
         if (validationDTO.getApprove()) {
             updateEmployeeProductivity(task.getEmployee(), task.getValidationTime().toLocalDate());
         } else {
-            task.setStatus(Task.TaskStatus.INCOMPLETED);
+            task.setStatus(Task.TaskStatus.UNCOMPLETED);
         }
 
         return employeeConverter.convertToTaskDTO(taskRepository.save(task));
@@ -170,7 +170,7 @@ public class TaskServiceImpl implements TaskService {
         List<Task> expiredTasks = taskRepository.findByDeadlineBeforeAndStatus(yesterdayDate, Task.TaskStatus.PENDING);
 
         expiredTasks.forEach(task -> {
-            task.setStatus(Task.TaskStatus.INCOMPLETED);
+            task.setStatus(Task.TaskStatus.UNCOMPLETED);
             taskRepository.save(task);
         });
     }
@@ -190,7 +190,7 @@ public class TaskServiceImpl implements TaskService {
         );
 
         unvalidatedTasks.forEach(task -> {
-            task.setStatus(Task.TaskStatus.INCOMPLETED);
+            task.setStatus(Task.TaskStatus.UNCOMPLETED);
             taskRepository.save(task);
             log.info("Marked task {} as INCOMPLETED (not validated by deadline)", task.getId());
         });
