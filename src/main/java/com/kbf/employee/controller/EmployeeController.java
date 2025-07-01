@@ -1,13 +1,11 @@
 package com.kbf.employee.controller;
 
-import com.kbf.employee.dto.request.EmployeeDTO;
-import com.kbf.employee.dto.request.EmployeeStatusUpdateDTO;
-import com.kbf.employee.dto.request.EmployeeUpdateDTO;
+import com.kbf.employee.dto.request.*;
 import com.kbf.employee.dto.response.EmployeeProfileDTO;
 import com.kbf.employee.dto.response.EmployeeStatusHistoryDTO;
-import com.kbf.employee.exception.InvalidFileException;
+import com.kbf.employee.exception.DuplicateResourceException;
+import com.kbf.employee.exception.InvalidRequestException;
 import com.kbf.employee.service.EmployeeService;
-import com.kbf.employee.util.FileValidationUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -19,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,34 +35,22 @@ public class EmployeeController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Employee created successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid input"),
-            @ApiResponse(responseCode = "409", description = "Employee already exists"),
-            @ApiResponse(responseCode = "413", description = "File size too large"),
-            @ApiResponse(responseCode = "415", description = "Unsupported media type")
+            @ApiResponse(responseCode = "409", description = "Employee already exists")
     })
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> createEmployee(
-            @Valid @RequestPart("employee") EmployeeDTO employeeDTO,
-            @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
-            @RequestPart(value = "document", required = false) MultipartFile document) {
-
+    public ResponseEntity<?> createEmployee(@Valid @RequestBody EmployeeDTO employeeDTO) {
         log.info("Creating employee: {}", employeeDTO.getUsername());
-        log.debug("Profile picture: {} ({} bytes)",
-                profilePicture != null ? profilePicture.getOriginalFilename() : "null",
-                profilePicture != null ? profilePicture.getSize() : 0);
-        log.debug("Document: {} ({} bytes)",
-                document != null ? document.getOriginalFilename() : "null",
-                document != null ? document.getSize() : 0);
 
         try {
-            validateFile(profilePicture, "profile");
-            validateFile(document, "document");
-
-            EmployeeDTO createdEmployee = employeeService.createEmployee(employeeDTO, profilePicture, document);
+            EmployeeDTO createdEmployee = employeeService.createEmployee(employeeDTO);
             return ResponseEntity.ok(createdEmployee);
-        } catch (InvalidFileException e) {
-            log.error("File validation failed: {}", e.getMessage());
-            return buildErrorResponse(e.getMessage(), HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+        } catch (DuplicateResourceException e) {
+            log.error("Duplicate resource error: {}", e.getMessage());
+            return buildErrorResponse(e.getMessage(), HttpStatus.CONFLICT);
+        } catch (InvalidRequestException e) {
+            log.error("Invalid request error: {}", e.getMessage());
+            return buildErrorResponse(e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
             log.error("Error creating employee: {}", e.getMessage(), e);
             return buildErrorResponse("Failed to create employee", HttpStatus.INTERNAL_SERVER_ERROR);
@@ -109,16 +94,14 @@ public class EmployeeController {
             @ApiResponse(responseCode = "400", description = "Invalid input"),
             @ApiResponse(responseCode = "409", description = "Username or email already exists")
     })
-    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeDTO> updateEmployee(
             @PathVariable Long id,
-            @Valid @RequestPart("employee") EmployeeUpdateDTO employeeDTO,
-            @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
-            @RequestPart(value = "document", required = false) MultipartFile document) {
+            @Valid @RequestBody EmployeeUpdateDTO employeeDTO) {
 
         log.info("Updating employee ID: {}", id);
-        return ResponseEntity.ok(employeeService.updateEmployee(id, employeeDTO, profilePicture, document));
+        return ResponseEntity.ok(employeeService.updateEmployee(id, employeeDTO));
     }
 
     @Operation(summary = "Update employee status")
@@ -159,31 +142,6 @@ public class EmployeeController {
     @GetMapping("/history/status/{id}")
     public ResponseEntity<List<EmployeeStatusHistoryDTO>> getEmployeeStatusHistory(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.getEmployeeStatusHistory(id));
-    }
-
-    @Operation(summary = "Update employee profile picture (ADMIN)")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Profile picture updated successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid file format"),
-            @ApiResponse(responseCode = "404", description = "Employee not found")
-    })
-    @PutMapping(value = "/picture/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<EmployeeDTO> updateEmployeeProfilePicture(
-            @PathVariable Long id,
-            @RequestPart("file") MultipartFile file) {
-        return ResponseEntity.ok(employeeService.updateProfilePictureAsDTO(id, file));
-    }
-
-
-    private void validateFile(MultipartFile file, String fileType) throws InvalidFileException {
-        if (file != null && !file.isEmpty()) {
-            if ("profile".equals(fileType)) {
-                FileValidationUtil.validateImageFile(file);
-            } else if ("document".equals(fileType)) {
-                FileValidationUtil.validateDocumentFile(file);
-            }
-        }
     }
 
     private ResponseEntity<Map<String, Object>> buildErrorResponse(String message, HttpStatus status) {

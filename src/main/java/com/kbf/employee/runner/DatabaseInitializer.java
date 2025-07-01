@@ -44,9 +44,14 @@ public class DatabaseInitializer {
                     .name("System Administrator")
                     .email("ngwakenri2016@gmail.com")
                     .phoneNumber("+237670466987")
-                    .dateOfEmployment(LocalDate.now())
+                    .nationalId("101928362")
                     .department(Department.ADMINISTRATION)
+                    .dateOfEmployment(LocalDate.now())
                     .status(Employee.EmployeeStatus.ACTIVE)
+                    .currentPeriodStartDate(LocalDate.now())
+                    .totalHoursWorkedLast30Days(0.0)
+                    .workingDaysCount(0)
+                    .totalProductiveDays(0)
                     .roles(adminRoles)
                     .build();
 

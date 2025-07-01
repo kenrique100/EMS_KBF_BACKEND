@@ -1,34 +1,29 @@
 package com.kbf.employee.util;
 
-import com.kbf.employee.dto.request.EmployeeDTO;
-import com.kbf.employee.dto.request.SalaryPaymentDTO;
-import com.kbf.employee.dto.request.TaskDTO;
+import com.kbf.employee.dto.request.*;
 import com.kbf.employee.dto.response.EmployeeProfileDTO;
 import com.kbf.employee.dto.response.EmployeeStatusHistoryDTO;
-import com.kbf.employee.model.Employee;
-import com.kbf.employee.model.EmployeeStatusHistory;
-import com.kbf.employee.model.SalaryPayment;
-import com.kbf.employee.model.Task;
+import com.kbf.employee.model.*;
 import org.springframework.stereotype.Component;
 
 @Component
 public class EmployeeConverter {
+
     public EmployeeDTO convertToDTO(Employee employee) {
         return EmployeeDTO.builder()
                 .id(employee.getId())
                 .username(employee.getUsername())
                 .name(employee.getName())
                 .email(employee.getEmail())
+                .nationalId(employee.getNationalId())
                 .phoneNumber(employee.getPhoneNumber())
                 .department(employee.getDepartment())
                 .dateOfEmployment(employee.getDateOfEmployment())
                 .status(employee.getStatus())
                 .statusExpiration(employee.getStatusExpiration())
                 .suspensionDuration(employee.getSuspensionDuration())
-                .profilePicturePath(employee.getProfilePicturePath())
-                .documentPath(employee.getDocumentPath())
                 .totalHoursWorkedLast30Days(employee.getTotalHoursWorkedLast30Days())
-                .createdAt(employee.getCreatedAt()) // <-- Ensure this is set
+                .createdAt(employee.getCreatedAt())
                 .updatedAt(employee.getUpdatedAt())
                 .build();
     }
@@ -39,6 +34,7 @@ public class EmployeeConverter {
                 .username(employee.getUsername())
                 .name(employee.getName())
                 .email(employee.getEmail())
+                .nationalId(employee.getNationalId())
                 .phoneNumber(employee.getPhoneNumber())
                 .department(employee.getDepartment())
                 .dateOfEmployment(employee.getDateOfEmployment())
@@ -47,9 +43,11 @@ public class EmployeeConverter {
                 .statusExpiration(employee.getStatusExpiration())
                 .suspensionDuration(employee.getSuspensionDuration())
                 .terminationTimestamp(employee.getTerminationTimestamp())
-                .profilePicturePath(employee.getProfilePicturePath())
-                .documentPath(employee.getDocumentPath())
                 .totalHoursWorkedLast30Days(employee.getTotalHoursWorkedLast30Days())
+                .profilePictureUrl(employee.getProfilePicturePath() != null ?
+                        "/api/profile-pictures/" + employee.getId() : null)
+                .profilePictureThumbnailUrl(employee.getProfilePictureThumbnailPath() != null ?
+                        "/api/profile-pictures/" + employee.getId() + "/thumbnail" : null)
                 .createdAt(employee.getCreatedAt().toLocalDate())
                 .updatedAt(employee.getUpdatedAt().toLocalDate())
                 .build();
@@ -107,12 +105,11 @@ public class EmployeeConverter {
                 .username(profile.getUsername())
                 .name(profile.getName())
                 .email(profile.getEmail())
+                .nationalId(profile.getNationalId())
                 .phoneNumber(profile.getPhoneNumber())
                 .department(profile.getDepartment())
                 .dateOfEmployment(profile.getDateOfEmployment())
                 .status(profile.getStatus())
-                .profilePicturePath(profile.getProfilePicturePath())
-                .documentPath(profile.getDocumentPath())
                 .totalHoursWorkedLast30Days(profile.getTotalHoursWorkedLast30Days())
                 .build();
     }

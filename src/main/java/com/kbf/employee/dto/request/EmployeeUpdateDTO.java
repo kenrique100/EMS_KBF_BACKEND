@@ -3,9 +3,7 @@ package com.kbf.employee.dto.request;
 import com.kbf.employee.model.enums.Department;
 import com.kbf.employee.model.Employee;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.PastOrPresent;
-import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.*;
 import lombok.Builder;
 import lombok.Data;
 
@@ -23,6 +21,12 @@ public class EmployeeUpdateDTO {
 
     @Schema(description = "Full name of the employee", example = "John Farmer")
     private String name;
+
+    @NotBlank(message = "National ID cannot be blank")
+    @Size(min = 9, max = 15, message = "National ID must be between 9 and 15 digits")
+    @Pattern(regexp = "^[0-9]+$", message = "National ID must contain only digits")
+    @Schema(description = "National identity card number", example = "1234567890")
+    private String nationalId;
 
     @Email
     @Schema(description = "Email address of the employee", example = "john.farmer@agro.com")

@@ -35,6 +35,9 @@ public class Employee {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = false, unique = true)
+    private String nationalId;
+
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
@@ -51,8 +54,8 @@ public class Employee {
     @Column(name = "profile_picture_path")
     private String profilePicturePath;
 
-    @Column(name = "document_path")
-    private String documentPath;
+    @Column(name = "profile_picture_thumbnail_path")
+    private String profilePictureThumbnailPath;
 
     @Column(name = "total_hours_worked_last_30_days", columnDefinition = "double default 0.0")
     private Double totalHoursWorkedLast30Days = 0.0;

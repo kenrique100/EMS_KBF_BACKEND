@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -22,15 +21,14 @@ import java.nio.file.StandardCopyOption;
 @Slf4j
 @Service
 public class FileStorageServiceImpl implements FileStorageService {
-
     @Value("${file.upload-dir:uploads}")
-    private String uploadDir;
+    private String baseUploadDir;
 
     @PostConstruct
     @Override
     public void init() {
         try {
-            Path root = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Path root = Paths.get(baseUploadDir).toAbsolutePath().normalize();
             Files.createDirectories(root);
             log.info("Initialized file storage at: {}", root);
         } catch (IOException e) {
@@ -39,91 +37,76 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     @Override
-    public String store(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            return null;
-        }
-
+    public String store(MultipartFile file, String subDirectory, String filename) {
         try {
-            String filename = generateUniqueFilename(file);
-            Path destination = Paths.get(uploadDir).resolve(filename).normalize();
-
-            // Ensure the path stays within the upload directory
-            if (!destination.startsWith(Paths.get(uploadDir).normalize())) {
-                throw new FileStorageException("Invalid file path attempted");
-            }
-
+            Path destination = buildDestinationPath(subDirectory, filename);
             Files.createDirectories(destination.getParent());
+
             try (InputStream inputStream = file.getInputStream()) {
                 Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING);
             }
 
-            log.debug("Stored file: {}", destination);
-            return filename;
+            return destination.toString();
         } catch (IOException e) {
-            throw new FileStorageException("Failed to store file: " + file.getOriginalFilename(), e);
+            throw new FileStorageException("Failed to store file: " + filename, e);
         }
     }
 
     @Override
-    public Resource loadAsResource(String filename) {
+    public String store(InputStream inputStream, long size, String subDirectory, String filename, String contentType) {
         try {
-            Path file = Paths.get(uploadDir).resolve(filename).normalize();
+            Path destination = buildDestinationPath(subDirectory, filename);
+            Files.createDirectories(destination.getParent());
+            Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING);
+            return destination.toString();
+        } catch (IOException e) {
+            throw new FileStorageException("Failed to store file: " + filename, e);
+        }
+    }
+
+    @Override
+    public Resource loadAsResource(String filePath) {
+        try {
+            Path file = Paths.get(filePath).normalize();
             Resource resource = new UrlResource(file.toUri());
 
             if (resource.exists() || resource.isReadable()) {
                 return resource;
             } else {
-                throw new FileStorageException("Could not read file: " + filename);
+                throw new FileStorageException("Could not read file: " + filePath);
             }
         } catch (MalformedURLException e) {
-            throw new FileStorageException("Could not read file: " + filename, e);
+            throw new FileStorageException("Could not read file: " + filePath, e);
         }
     }
 
     @Override
-    public void delete(String filename) {
-        if (filename == null || filename.isBlank()) {
-            return; // Skip if filename is empty
+    public void delete(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return;
         }
 
         try {
-            Path file = Paths.get(uploadDir).resolve(filename).normalize();
-
-            // Additional safety check
-            if (!file.startsWith(Paths.get(uploadDir).normalize())) {
-                throw new FileStorageException("Invalid file path: " + filename);
-            }
-
+            Path file = Paths.get(filePath).normalize();
             if (Files.exists(file)) {
                 Files.delete(file);
                 log.debug("Deleted file: {}", file);
-            } else {
-                log.warn("File not found, skipping deletion: {}", filename);
             }
         } catch (IOException e) {
-            log.error("Error deleting file {}: {}", filename, e.getMessage());
-            throw new FileStorageException("Failed to delete file: " + filename, e);
+            log.error("Error deleting file {}: {}", filePath, e.getMessage());
+            throw new FileStorageException("Failed to delete file: " + filePath, e);
         }
     }
 
-    private String generateUniqueFilename(MultipartFile file) {
-        String originalFilename = file.getOriginalFilename();
-        String timestamp = String.valueOf(System.currentTimeMillis());
+    private Path buildDestinationPath(String subDirectory, String filename) {
+        Path destination = Paths.get(baseUploadDir, subDirectory, filename).toAbsolutePath().normalize();
 
-        if (originalFilename == null || originalFilename.isBlank()) {
-            return timestamp + "_file";
+        // Security check to prevent directory traversal
+        Path basePath = Paths.get(baseUploadDir).toAbsolutePath().normalize();
+        if (!destination.startsWith(basePath)) {
+            throw new FileStorageException("Cannot store file outside upload directory");
         }
 
-        String extension = StringUtils.getFilenameExtension(originalFilename);
-        String baseName = originalFilename.replace("." + extension, "");
-
-        // Clean filename
-        baseName = baseName.replaceAll("[^a-zA-Z0-9.\\-]", "_");
-
-        return String.format("%s_%s%s",
-                timestamp,
-                baseName,
-                extension != null ? "." + extension : "");
+        return destination;
     }
 }

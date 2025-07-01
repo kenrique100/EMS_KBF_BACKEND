@@ -25,6 +25,9 @@ public class EmployeeValidator {
         if (employeeRepository.existsByEmail(dto.getEmail())) {
             throw new DuplicateResourceException("Email already exists");
         }
+        if (employeeRepository.existsByNationalId(dto.getNationalId())) {
+            throw new DuplicateResourceException("National ID already exists");
+        }
     }
 
     public void validateEmployeeUpdate(Employee employee, EmployeeUpdateDTO dto) {
@@ -38,6 +41,12 @@ public class EmployeeValidator {
                 !dto.getEmail().equals(employee.getEmail()) &&
                 employeeRepository.existsByEmail(dto.getEmail())) {
             throw new DuplicateResourceException("Email already exists");
+        }
+
+        if (dto.getNationalId() != null &&
+                !dto.getNationalId().equals(employee.getNationalId()) &&
+                employeeRepository.existsByNationalId(dto.getNationalId())) {
+            throw new DuplicateResourceException("National ID already exists");
         }
     }
 
@@ -72,15 +81,6 @@ public class EmployeeValidator {
         }
         if (duration.toDays() > 30) {
             throw new InvalidRequestException("Suspension cannot exceed 30 days");
-        }
-    }
-
-    public void validateProductivityData(Employee employee) {
-        if (employee.getWorkingDaysCount() < 0) {
-            throw new InvalidDataException("Working days count cannot be negative");
-        }
-        if (employee.getTotalHoursWorkedLast30Days() < 0) {
-            throw new InvalidDataException("Total hours worked cannot be negative");
         }
     }
 }

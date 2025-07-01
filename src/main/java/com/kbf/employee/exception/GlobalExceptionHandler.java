@@ -72,6 +72,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(FileProcessingException.class)
+    public ResponseEntity<ErrorResponse> handleFileProcessing(
+            FileProcessingException ex, WebRequest request) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ErrorResponse.create(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        Objects.toString(ex.getMessage(), "File processing error"),
+                        request.getDescription(false)
+                )
+        );
+    }
+
     @ExceptionHandler(InvalidFileException.class)
     public ResponseEntity<ErrorResponse> handleInvalidFile(
             InvalidFileException ex, WebRequest request) {

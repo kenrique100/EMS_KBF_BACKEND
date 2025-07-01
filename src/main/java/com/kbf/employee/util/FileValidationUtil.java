@@ -30,10 +30,6 @@ public class FileValidationUtil {
         validateFile(file, "image");
     }
 
-    public static void validateDocumentFile(MultipartFile file) throws InvalidFileException {
-        if (file == null || file.isEmpty()) return;
-        validateFile(file, "document");
-    }
 
     private static void validateFile(MultipartFile file, String fileType) throws InvalidFileException {
         if (file == null || file.isEmpty()) {

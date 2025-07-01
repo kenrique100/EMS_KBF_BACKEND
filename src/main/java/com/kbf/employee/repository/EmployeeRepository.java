@@ -14,8 +14,10 @@ import java.util.Optional;
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     Optional<Employee> findByUsername(String username);
+    Optional<Employee> findByNationalId(String nationalId);
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
+    boolean existsByNationalId(String nationalId);
     List<Employee> findByStatusExpirationBeforeAndStatusIn(
             LocalDateTime expirationTime,
             List<Employee.EmployeeStatus> statuses
@@ -24,13 +26,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             Employee.EmployeeStatus status,
             LocalDateTime timestamp
     );
-
     List<Employee> findByStatus(Employee.EmployeeStatus status);
-
-    Optional<Employee> findByProfilePicturePathOrDocumentPath(
-            String profilePicturePath,
-            String documentPath
-    );
 
     @Query("SELECT DISTINCT t.employee FROM Task t WHERE DATE(t.deadline) = :date")
     List<Employee> findEmployeesWithTasksDue(@Param("date") LocalDate date);
