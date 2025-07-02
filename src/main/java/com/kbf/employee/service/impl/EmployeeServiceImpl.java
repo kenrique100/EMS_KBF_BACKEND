@@ -205,6 +205,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         return profile;
     }
 
+
     @Override
     public List<EmployeeStatusHistoryDTO> getEmployeeStatusHistory(Long employeeId) {
         return historyRepository.findByEmployeeIdOrderByStartTimestampDesc(employeeId)

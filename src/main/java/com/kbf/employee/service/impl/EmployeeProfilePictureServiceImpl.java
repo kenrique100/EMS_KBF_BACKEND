@@ -1,10 +1,12 @@
 package com.kbf.employee.service.impl;
 
+import com.kbf.employee.dto.request.EmployeeDTO;
 import com.kbf.employee.exception.*;
 import com.kbf.employee.model.Employee;
 import com.kbf.employee.repository.EmployeeRepository;
 import com.kbf.employee.service.EmployeeProfilePictureService;
 import com.kbf.employee.service.FileStorageService;
+import com.kbf.employee.util.EmployeeConverter;
 import com.kbf.employee.util.FileValidationUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ import java.util.UUID;
 public class EmployeeProfilePictureServiceImpl implements EmployeeProfilePictureService {
     private final EmployeeRepository employeeRepository;
     private final FileStorageService fileStorageService;
+    private final EmployeeConverter employeeConverter;
 
     @Value("${profile.picture.upload-dir:profile-pictures}")
     private String uploadDir;
@@ -42,11 +45,10 @@ public class EmployeeProfilePictureServiceImpl implements EmployeeProfilePicture
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
 
-        // Validate the file
         FileValidationUtil.validateImageFile(file);
 
         try {
-            // Delete old pictures if they exist
+            // Delete existing images
             if (employee.getProfilePicturePath() != null) {
                 fileStorageService.delete(employee.getProfilePicturePath());
             }
@@ -54,26 +56,33 @@ public class EmployeeProfilePictureServiceImpl implements EmployeeProfilePicture
                 fileStorageService.delete(employee.getProfilePictureThumbnailPath());
             }
 
-            // Generate unique filenames
+            // Get file extension
             String originalFilename = file.getOriginalFilename();
             String extension = FilenameUtils.getExtension(originalFilename);
+            if (extension == null || extension.isBlank()) {
+                throw new InvalidFileException("Could not determine file extension.");
+            }
+
+            extension = extension.toLowerCase();
             String baseName = UUID.randomUUID().toString();
             String mainFilename = baseName + "." + extension;
             String thumbnailFilename = baseName + "_thumb." + extension;
 
-            // Store original image
+            // Save original image
             String storedPath = fileStorageService.store(file, uploadDir, mainFilename);
 
-            // Create and store thumbnail
+            // Generate and store thumbnail
             BufferedImage originalImage = ImageIO.read(file.getInputStream());
             BufferedImage thumbnail = Thumbnails.of(originalImage)
                     .size(thumbnailWidth, thumbnailHeight)
                     .asBufferedImage();
 
             ByteArrayOutputStream thumbOutput = new ByteArrayOutputStream();
-            ImageIO.write(thumbnail, extension, thumbOutput);
-            byte[] thumbBytes = thumbOutput.toByteArray();
+            if (!ImageIO.write(thumbnail, extension, thumbOutput)) {
+                throw new FileProcessingException("Unsupported image format for thumbnail: " + extension);
+            }
 
+            byte[] thumbBytes = thumbOutput.toByteArray();
             String thumbPath = fileStorageService.store(
                     new ByteArrayInputStream(thumbBytes),
                     thumbBytes.length,
@@ -82,7 +91,7 @@ public class EmployeeProfilePictureServiceImpl implements EmployeeProfilePicture
                     file.getContentType()
             );
 
-            // Update employee record
+            // Update employee profile picture paths
             employee.setProfilePicturePath(storedPath);
             employee.setProfilePictureThumbnailPath(thumbPath);
             employeeRepository.save(employee);
@@ -130,5 +139,18 @@ public class EmployeeProfilePictureServiceImpl implements EmployeeProfilePicture
         }
 
         return fileStorageService.loadAsResource(employee.getProfilePictureThumbnailPath());
+    }
+
+    @Override
+    @Transactional
+    public EmployeeDTO updateEmployeeProfilePicture(Long employeeId, MultipartFile file) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
+
+        String filePath = this.uploadProfilePicture(employeeId, file);
+
+        employee.setProfilePicturePath(filePath);
+        Employee updated = employeeRepository.save(employee);
+        return employeeConverter.convertToDTO(updated);
     }
 }

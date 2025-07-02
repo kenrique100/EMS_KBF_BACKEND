@@ -1,5 +1,6 @@
 package com.kbf.employee.controller;
 
+import com.kbf.employee.dto.request.EmployeeDTO;
 import com.kbf.employee.dto.request.ProfilePictureUploadDTO;
 import com.kbf.employee.exception.AccessDeniedException;
 import com.kbf.employee.security.UserPrincipal;
@@ -10,13 +11,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @Tag(name = "Profile Picture", description = "Employee Profile Picture Management API")
 @RestController
 @RequestMapping("/api/profile-pictures")
@@ -98,5 +102,23 @@ public class ProfilePictureController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
                 .contentType(MediaType.IMAGE_JPEG) // or detect from file extension
                 .body(resource);
+    }
+
+    @Operation(summary = "Update employee profile picture")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Employee updated with new profile picture"),
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Employee not found")
+    })
+    @PutMapping(value = "/{id}/profile-picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+    public ResponseEntity<EmployeeDTO> updateEmployeeProfilePicture(
+            @PathVariable Long id,
+            @ModelAttribute ProfilePictureUploadDTO uploadDTO) {
+
+        log.info("Updating profile picture for employee ID: {}", id);
+        EmployeeDTO updatedEmployee = profilePictureService.updateEmployeeProfilePicture(id, uploadDTO.getProfilePicture());
+        return ResponseEntity.ok(updatedEmployee);
     }
 }

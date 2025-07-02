@@ -1,5 +1,6 @@
 package com.kbf.employee.service;
 
+import com.kbf.employee.dto.request.EmployeeDTO;
 import org.springframework.core.io.Resource;
 
 import org.springframework.web.multipart.MultipartFile;
@@ -9,4 +10,5 @@ public interface EmployeeProfilePictureService {
     void removeProfilePicture(Long employeeId);
     Resource getProfilePicture(Long employeeId);
     Resource getProfilePictureThumbnail(Long employeeId);
+    EmployeeDTO updateEmployeeProfilePicture(Long employeeId, MultipartFile file);
 }
