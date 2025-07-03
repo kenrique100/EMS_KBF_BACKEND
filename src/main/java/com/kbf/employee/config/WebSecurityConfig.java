@@ -54,7 +54,7 @@ public class WebSecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/actuator/health",
-                                "/api/employees/files/**"
+                                "/api/profile-pictures/**"
                         ).permitAll()
 
                         // Employee endpoints

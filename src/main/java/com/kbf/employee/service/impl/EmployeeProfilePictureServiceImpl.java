@@ -103,7 +103,7 @@ public class EmployeeProfilePictureServiceImpl implements EmployeeProfilePicture
     }
 
     @Transactional
-    public void removeProfilePicture(Long employeeId) {
+    public void deleteProfilePicture(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
 

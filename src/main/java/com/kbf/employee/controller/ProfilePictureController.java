@@ -3,6 +3,7 @@ package com.kbf.employee.controller;
 import com.kbf.employee.dto.request.EmployeeDTO;
 import com.kbf.employee.dto.request.ProfilePictureUploadDTO;
 import com.kbf.employee.exception.AccessDeniedException;
+import com.kbf.employee.exception.ResourceNotFoundException;
 import com.kbf.employee.security.UserPrincipal;
 import com.kbf.employee.service.EmployeeProfilePictureService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -62,7 +63,7 @@ public class ProfilePictureController {
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @DeleteMapping("/{employeeId}")
-    public ResponseEntity<Void> removeProfilePicture(
+    public ResponseEntity<Void> deleteProfilePicture(
             @PathVariable Long employeeId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
@@ -70,7 +71,7 @@ public class ProfilePictureController {
             throw new AccessDeniedException("You can only remove your own profile picture");
         }
 
-        profilePictureService.removeProfilePicture(employeeId);
+        profilePictureService.deleteProfilePicture(employeeId);
         return ResponseEntity.noContent().build();
     }
 
@@ -81,14 +82,21 @@ public class ProfilePictureController {
     })
     @GetMapping("/{employeeId}")
     public ResponseEntity<Resource> getProfilePicture(@PathVariable Long employeeId) {
-        Resource resource = profilePictureService.getProfilePicture(employeeId);
+        if (employeeId == null) {
+            return ResponseEntity.badRequest().build();
+        }
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
-                .contentType(MediaType.IMAGE_JPEG) // or detect from file extension
-                .body(resource);
-    }
-
+        try {
+            Resource resource = profilePictureService.getProfilePicture(employeeId);
+            String contentType = determineContentType(resource);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .body(resource);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+}
     @Operation(summary = "Get profile picture thumbnail")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Profile picture thumbnail retrieved"),
@@ -98,9 +106,10 @@ public class ProfilePictureController {
     public ResponseEntity<Resource> getProfilePictureThumbnail(@PathVariable Long employeeId) {
         Resource resource = profilePictureService.getProfilePictureThumbnail(employeeId);
 
+        String contentType = determineContentType(resource);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
-                .contentType(MediaType.IMAGE_JPEG) // or detect from file extension
+                .contentType(MediaType.parseMediaType(contentType))
                 .body(resource);
     }
 
@@ -120,5 +129,19 @@ public class ProfilePictureController {
         log.info("Updating profile picture for employee ID: {}", id);
         EmployeeDTO updatedEmployee = profilePictureService.updateEmployeeProfilePicture(id, uploadDTO.getProfilePicture());
         return ResponseEntity.ok(updatedEmployee);
+    }
+
+    private String determineContentType(Resource resource) {
+        try {
+            String filename = resource.getFilename();
+            if (filename != null) {
+                if (filename.endsWith(".png")) return "image/png";
+                if (filename.endsWith(".gif")) return "image/gif";
+                if (filename.endsWith(".webp")) return "image/webp";
+            }
+        } catch (Exception e) {
+            log.warn("Could not determine content type from filename", e);
+        }
+        return "image/jpeg"; // default
     }
 }

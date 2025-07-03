@@ -7,7 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface EmployeeProfilePictureService {
     String uploadProfilePicture(Long employeeId, MultipartFile file);
-    void removeProfilePicture(Long employeeId);
+    void deleteProfilePicture(Long employeeId);
     Resource getProfilePicture(Long employeeId);
     Resource getProfilePictureThumbnail(Long employeeId);
     EmployeeDTO updateEmployeeProfilePicture(Long employeeId, MultipartFile file);
