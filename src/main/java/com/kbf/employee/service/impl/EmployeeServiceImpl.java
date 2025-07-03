@@ -68,15 +68,15 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     @Transactional
-    public EmployeeDTO updateEmployee(Long id, EmployeeUpdateDTO dto) {
+    public EmployeeDTO updateEmployee(Long id, EmployeeUpdateDTO patchDTO) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
-        employeeValidator.validateEmployeeUpdate(employee, dto);
-        employeeHelper.updateEmployeeFields(employee, dto);
+        employeeValidator.validateEmployeeUpdate(employee, patchDTO);
+        employeeHelper.updateEmployeeFields(employee, patchDTO);
 
         Employee updated = employeeRepository.save(employee);
-        log.info("Updated employee ID {}", id);
+        log.info("Patched employee ID {}", id);
         return employeeConverter.convertToDTO(updated);
     }
 

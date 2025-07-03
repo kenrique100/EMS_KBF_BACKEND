@@ -87,21 +87,21 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.getEmployeeProfile(id));
     }
 
-    @Operation(summary = "Update employee details")
+    @Operation(summary = "Partially update employee details")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Employee updated successfully"),
             @ApiResponse(responseCode = "404", description = "Employee not found"),
             @ApiResponse(responseCode = "400", description = "Invalid input"),
             @ApiResponse(responseCode = "409", description = "Username or email already exists")
     })
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeDTO> updateEmployee(
             @PathVariable Long id,
-            @Valid @RequestBody EmployeeUpdateDTO employeeDTO) {
+            @Valid @RequestBody EmployeeUpdateDTO employeeUpdateDTO) {
 
-        log.info("Updating employee ID: {}", id);
-        return ResponseEntity.ok(employeeService.updateEmployee(id, employeeDTO));
+        log.info("Patching employee ID: {}", id);
+        return ResponseEntity.ok(employeeService.updateEmployee(id, employeeUpdateDTO));
     }
 
     @Operation(summary = "Update employee status")
