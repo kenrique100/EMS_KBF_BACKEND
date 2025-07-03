@@ -62,6 +62,9 @@ public class Task {
     @Column(name = "validation_time")
     private LocalDateTime validationTime;
 
+    @Column(name = "is_submitted")
+    private Boolean isSubmitted = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -74,8 +77,10 @@ public class Task {
         PENDING,
         IN_PROGRESS,
         COMPLETED,
+        STOPPED,
         UNCOMPLETED,
-        CANCELLED
+        CANCELLED,
+        SUBMITTED
     }
 
     @PreUpdate

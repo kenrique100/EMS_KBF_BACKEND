@@ -96,6 +96,7 @@ public class EmployeeConverter {
                 .validationTime(task.getValidationTime())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
+                .submitted(Boolean.TRUE.equals(task.getIsSubmitted()))
                 .build();
     }
 

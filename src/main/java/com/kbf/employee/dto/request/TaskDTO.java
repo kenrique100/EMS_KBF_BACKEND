@@ -68,4 +68,8 @@ public class TaskDTO {
     @Schema(description = "When the task was validated", example = "2023-06-15T17:00:00")
     private LocalDateTime validationTime;
 
+    @Schema(description = "When a task is submitted by employee", example = "submit")
+    private boolean submitted;
+
+
 }

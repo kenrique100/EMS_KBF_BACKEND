@@ -57,4 +57,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    List<Task> findByStatusAndIsSubmittedTrueAndStopTimeBetween(
+            Task.TaskStatus status, LocalDateTime from, LocalDateTime to
+    );
 }

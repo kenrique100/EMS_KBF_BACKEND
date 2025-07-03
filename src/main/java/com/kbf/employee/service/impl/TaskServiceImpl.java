@@ -31,7 +31,6 @@ public class TaskServiceImpl implements TaskService {
     private final EmployeeConverter employeeConverter;
 
     @Override
-    @Transactional
     public TaskDTO createTask(TaskDTO taskDTO) {
         Employee employee = employeeRepository.findById(taskDTO.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + taskDTO.getEmployeeId()));
@@ -45,6 +44,7 @@ public class TaskServiceImpl implements TaskService {
                 .expectedHours(taskDTO.getExpectedHours())
                 .totalWorkedMinutes(0L)
                 .isValidated(false)
+                .isSubmitted(false)
                 .build();
 
         Task savedTask = taskRepository.save(task);
@@ -69,7 +69,6 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    @Transactional
     public TaskDTO updateTaskStatus(TaskActionDTO actionDTO, Long currentUserId, boolean isAdmin) {
         Task task = taskRepository.findById(actionDTO.getTaskId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + actionDTO.getTaskId()));
@@ -88,8 +87,11 @@ public class TaskServiceImpl implements TaskService {
             case "CONTINUE":
                 continueTask(task);
                 break;
-            case "COMPLETE":
-                completeTask(task);
+            case "SUBMIT":
+                submitTask(task);
+                break;
+            case "CANCEL":
+                cancelTask(task);
                 break;
             default:
                 throw new IllegalArgumentException("Invalid action: " + actionDTO.getAction());
@@ -113,51 +115,69 @@ public class TaskServiceImpl implements TaskService {
         }
         task.setStopTime(LocalDateTime.now());
         updateWorkedTime(task);
+        task.setStatus(Task.TaskStatus.STOPPED);
     }
 
     private void continueTask(Task task) {
-        if (task.getStatus() != Task.TaskStatus.IN_PROGRESS || task.getStopTime() == null) {
-            throw new IllegalStateException("Task can only be continued when IN_PROGRESS and previously stopped");
+        if (task.getStatus() != Task.TaskStatus.STOPPED) {
+            throw new IllegalStateException("Task can only be continued when STOPPED");
         }
         task.setLastResumeTime(LocalDateTime.now());
         task.setStopTime(null);
+        task.setStatus(Task.TaskStatus.IN_PROGRESS);
     }
 
-    private void completeTask(Task task) {
+    private void submitTask(Task task) {
         if (task.getStatus() != Task.TaskStatus.IN_PROGRESS) {
-            throw new IllegalStateException("Task can only be completed when IN_PROGRESS");
+            throw new IllegalStateException("Task can only be submitted when IN_PROGRESS");
         }
-        task.setStatus(Task.TaskStatus.COMPLETED);
+
         task.setStopTime(LocalDateTime.now());
         updateWorkedTime(task);
+        task.setIsSubmitted(true);
+    }
+
+    private void cancelTask(Task task) {
+        if (task.getStatus() == Task.TaskStatus.COMPLETED ||
+                task.getStatus() == Task.TaskStatus.CANCELLED ||
+                task.getStatus() == Task.TaskStatus.UNCOMPLETED) {
+            throw new IllegalStateException("Cannot cancel a task that is already final");
+        }
+        task.setStatus(Task.TaskStatus.CANCELLED);
+        task.setStopTime(LocalDateTime.now());
     }
 
     @Override
-    @Transactional
     public TaskDTO validateTask(TaskValidationDTO validationDTO, Long adminId) {
         Task task = taskRepository.findById(validationDTO.getTaskId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
-        if (task.getStatus() != Task.TaskStatus.COMPLETED) {
-            throw new InvalidOperationException("Only completed tasks can be validated");
+        if (!Boolean.TRUE.equals(task.getIsSubmitted()) || task.getStatus() != Task.TaskStatus.IN_PROGRESS) {
+            throw new InvalidOperationException("Only submitted IN_PROGRESS tasks can be validated");
         }
 
         Employee admin = employeeRepository.findById(adminId)
                 .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
 
-        if (admin.getRoles().stream().noneMatch(role -> role.getName() == Role.RoleName.ROLE_ADMIN)) {
+        boolean isAdmin = admin.getRoles().stream()
+                .anyMatch(role -> role.getName() == Role.RoleName.ROLE_ADMIN);
+
+        if (!isAdmin) {
             throw new AccessDeniedException("Only admins can validate tasks");
         }
 
-        task.setIsValidated(validationDTO.getApprove());
         task.setValidationTime(LocalDateTime.now());
 
         if (validationDTO.getApprove()) {
+            task.setIsValidated(true);
+            task.setStatus(Task.TaskStatus.COMPLETED);
             updateEmployeeProductivity(task.getEmployee(), task.getValidationTime().toLocalDate());
         } else {
-            task.setStatus(Task.TaskStatus.UNCOMPLETED);
+            task.setIsValidated(false);
+            task.setStatus(Task.TaskStatus.CANCELLED);
         }
 
+        task.setIsSubmitted(false);
         return employeeConverter.convertToTaskDTO(taskRepository.save(task));
     }
 
@@ -167,7 +187,8 @@ public class TaskServiceImpl implements TaskService {
         LocalDate yesterday = LocalDate.now().minusDays(1);
         Date yesterdayDate = Date.from(yesterday.atStartOfDay(ZoneId.systemDefault()).toInstant());
 
-        List<Task> expiredTasks = taskRepository.findByDeadlineBeforeAndStatus(yesterdayDate, Task.TaskStatus.PENDING);
+        List<Task> expiredTasks = taskRepository.findByDeadlineBeforeAndStatus(
+                yesterdayDate, Task.TaskStatus.PENDING);
 
         expiredTasks.forEach(task -> {
             task.setStatus(Task.TaskStatus.UNCOMPLETED);
@@ -178,21 +199,21 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Scheduled(cron = "0 */5 * * * *")
     public void processUnvalidatedTasks() {
-        LocalDate yesterday = LocalDate.now().minusDays(1);
-        LocalDateTime startOfDay = yesterday.atStartOfDay();
-        LocalDateTime endOfDay = yesterday.atTime(23, 59, 59);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = now.toLocalDate().atTime(23, 59, 59);
 
-        List<Task> unvalidatedTasks = taskRepository.findByStatusAndIsValidatedAndStopTimeBetween(
-                Task.TaskStatus.COMPLETED,
-                false,
-                startOfDay,
-                endOfDay
+        List<Task> pendingValidation = taskRepository.findByStatusAndIsSubmittedTrueAndStopTimeBetween(
+                Task.TaskStatus.IN_PROGRESS, startOfDay, endOfDay
         );
 
-        unvalidatedTasks.forEach(task -> {
+        pendingValidation.forEach(task -> {
             task.setStatus(Task.TaskStatus.UNCOMPLETED);
+            task.setIsValidated(false);
+            task.setIsSubmitted(false);
             taskRepository.save(task);
-            log.info("Marked task {} as UNCOMPLETED (not validated by deadline)", task.getId());
+
+            log.info("Task {} marked UNCOMPLETED (not validated by end of day)", task.getId());
         });
     }
 
@@ -201,7 +222,11 @@ public class TaskServiceImpl implements TaskService {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
 
-        List<Task> validatedTasks = taskRepository.findByEmployeeAndIsValidated(employee, true);
+        List<Task> validatedTasks = taskRepository.findByEmployeeAndIsValidated(employee, true)
+                .stream()
+                .filter(t -> t.getStatus() == Task.TaskStatus.COMPLETED)
+                .collect(Collectors.toList());
+
         double totalHoursWorked = calculateTotalHours(validatedTasks);
         int workingDays = getDistinctWorkingDays(validatedTasks);
         double dailyAverage = workingDays > 0 ? totalHoursWorked / workingDays : 0.0;
@@ -216,21 +241,11 @@ public class TaskServiceImpl implements TaskService {
                 .build();
     }
 
-    private int getDistinctWorkingDays(List<Task> tasks) {
-        return (int) tasks.stream()
-                .map(t -> t.getStopTime().toLocalDate())
-                .distinct()
-                .count();
-    }
-
-    private double calculateTotalHours(List<Task> tasks) {
-        return tasks.stream()
-                .mapToDouble(t -> t.getActualHours() != null ? t.getActualHours() : 0)
-                .sum();
-    }
-
-    private Double calculateProductivityPercentage(Employee employee) {
-        List<Task> validatedTasks = taskRepository.findByEmployeeAndIsValidated(employee, true);
+    private double calculateProductivityPercentage(Employee employee) {
+        List<Task> validatedTasks = taskRepository.findByEmployeeAndIsValidated(employee, true)
+                .stream()
+                .filter(t -> t.getStatus() == Task.TaskStatus.COMPLETED)
+                .toList();
 
         double totalExpectedHours = validatedTasks.stream()
                 .mapToDouble(t -> t.getExpectedHours() != null ? t.getExpectedHours() : 0)
@@ -242,14 +257,22 @@ public class TaskServiceImpl implements TaskService {
         return totalExpectedHours == 0 ? 0.0 : (totalActualHours / totalExpectedHours) * 100;
     }
 
-    private void updateWorkedTime(Task task) {
-        if (task.getStartTime() == null || task.getStopTime() == null) {
-            return;
-        }
+    private double calculateTotalHours(List<Task> tasks) {
+        return tasks.stream()
+                .mapToDouble(t -> t.getActualHours() != null ? t.getActualHours() : 0)
+                .sum();
+    }
 
-        if (isCalculationUpToDate(task)) {
-            return;
-        }
+    private int getDistinctWorkingDays(List<Task> tasks) {
+        return (int) tasks.stream()
+                .map(t -> t.getStopTime().toLocalDate())
+                .distinct()
+                .count();
+    }
+
+    private void updateWorkedTime(Task task) {
+        if (task.getStartTime() == null || task.getStopTime() == null) return;
+        if (isCalculationUpToDate(task)) return;
 
         long minutesWorked = calculateTotalMinutesWorked(task);
         task.setTotalWorkedMinutes(minutesWorked);
@@ -263,10 +286,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private long calculateTotalMinutesWorked(Task task) {
-        if (task.getStartTime() == null || task.getStopTime() == null) {
-            return 0;
-        }
-
+        if (task.getStartTime() == null || task.getStopTime() == null) return 0;
         Duration duration = Duration.between(task.getStartTime(), task.getStopTime());
         long seconds = duration.getSeconds();
         return (seconds / 60) + (seconds % 60 >= 30 ? 1 : 0);
@@ -340,23 +360,22 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    public TaskDTO getTaskById(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        return employeeConverter.convertToTaskDTO(task);
+    }
+
+    @Override
     @Transactional
     public TaskDTO updateTask(Long taskId, TaskDTO taskDTO) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
 
-        if (taskDTO.getTitle() != null) {
-            task.setTitle(taskDTO.getTitle());
-        }
-        if (taskDTO.getDescription() != null) {
-            task.setDescription(taskDTO.getDescription());
-        }
-        if (taskDTO.getDeadline() != null) {
-            task.setDeadline(taskDTO.getDeadline());
-        }
-        if (taskDTO.getExpectedHours() != null) {
-            task.setExpectedHours(taskDTO.getExpectedHours());
-        }
+        if (taskDTO.getTitle() != null) task.setTitle(taskDTO.getTitle());
+        if (taskDTO.getDescription() != null) task.setDescription(taskDTO.getDescription());
+        if (taskDTO.getDeadline() != null) task.setDeadline(taskDTO.getDeadline());
+        if (taskDTO.getExpectedHours() != null) task.setExpectedHours(taskDTO.getExpectedHours());
         if (taskDTO.getEmployeeId() != null) {
             Employee employee = employeeRepository.findById(taskDTO.getEmployeeId())
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + taskDTO.getEmployeeId()));
@@ -374,12 +393,5 @@ public class TaskServiceImpl implements TaskService {
             throw new ResourceNotFoundException("Task not found with id: " + taskId);
         }
         taskRepository.deleteById(taskId);
-    }
-
-    @Override
-    public TaskDTO getTaskById(Long taskId) {
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
-        return employeeConverter.convertToTaskDTO(task);
     }
 }
