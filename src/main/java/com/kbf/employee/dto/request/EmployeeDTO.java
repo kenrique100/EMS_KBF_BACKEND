@@ -31,6 +31,8 @@ public class EmployeeDTO {
     @NotBlank
     @Schema(description = "Password for the employee account", example = "securePassword123",
             accessMode = Schema.AccessMode.WRITE_ONLY)
+    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$",
+            message = "Password too weak")
     private String password;
 
     @NotBlank(message = "National ID cannot be blank")

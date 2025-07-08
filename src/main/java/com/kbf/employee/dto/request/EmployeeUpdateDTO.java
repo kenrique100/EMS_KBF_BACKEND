@@ -47,8 +47,8 @@ public class EmployeeUpdateDTO {
     private LocalDate dateOfEmployment;
 
     @Schema(description = "Password for the employee account", example = "securePassword123")
+    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$",
+            message = "Password too weak")
     private String password;
 
-    @Schema(description = "Employee status", example = "ACTIVE")
-    private Employee.EmployeeStatus status;
 }

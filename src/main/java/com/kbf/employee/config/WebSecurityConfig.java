@@ -7,6 +7,7 @@ import com.kbf.employee.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -53,21 +54,24 @@ public class WebSecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/actuator/health",
-                                "/api/profile-pictures/**"
+                                "/actuator/health"
                         ).permitAll()
 
                         // Employee endpoints
-                        .requestMatchers("/api/employees").hasRole("ADMIN")
-                        .requestMatchers("/api/employees/**").authenticated()
-
-                        // Task endpoints
-                        .requestMatchers("/api/tasks").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers("/api/tasks/status").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers("/api/tasks/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/employees").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/employees").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/employees/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/employees/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/employees/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
 
                         // Profile endpoints
                         .requestMatchers("/api/profile/**").authenticated()
+                        .requestMatchers("/api/profile-pictures/**").authenticated()
+
+                        // Task endpoints
+                        .requestMatchers("/api/tasks").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers("/api/tasks/**").authenticated()
 
                         // Salary endpoints
                         .requestMatchers("/api/salaries").hasAnyRole("ADMIN", "USER")
@@ -81,11 +85,6 @@ public class WebSecurityConfig {
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(tokenProvider, customUserDetailsService);
     }
 
     @Bean
@@ -111,6 +110,11 @@ public class WebSecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(tokenProvider, customUserDetailsService);
     }
 
     @Bean

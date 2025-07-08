@@ -100,8 +100,17 @@ public class EmployeeController {
             @PathVariable Long id,
             @Valid @RequestBody EmployeeUpdateDTO employeeUpdateDTO) {
 
-        log.info("Patching employee ID: {}", id);
-        return ResponseEntity.ok(employeeService.updateEmployee(id, employeeUpdateDTO));
+        log.info("Received PATCH request for employee ID: {}", id);
+        log.debug("Request body: {}", employeeUpdateDTO);
+
+        try {
+            EmployeeDTO updatedEmployee = employeeService.updateEmployee(id, employeeUpdateDTO);
+            log.info("Successfully updated employee ID: {}", id);
+            return ResponseEntity.ok(updatedEmployee);
+        } catch (Exception e) {
+            log.error("Error updating employee ID {}: {}", id, e.getMessage());
+            throw e;
+        }
     }
 
     @Operation(summary = "Update employee status")
