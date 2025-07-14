@@ -233,6 +233,8 @@ public class EmployeeServiceImpl implements EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + id));
 
+        taskRepository.deleteByEmployeeId(id);
+        salaryPaymentRepository.deleteByEmployeeId(id);
         historyRepository.deleteByEmployeeId(id);
         employeeRepository.delete(employee);
         log.info("Deleted employee ID: {}", id);

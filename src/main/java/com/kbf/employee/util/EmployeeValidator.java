@@ -19,6 +19,11 @@ public class EmployeeValidator {
     private final EmployeeRepository employeeRepository;
 
     public void validateEmployeeCreation(EmployeeDTO dto) {
+        if (dto == null) {
+            throw new InvalidRequestException("Employee data cannot be null");
+        }
+
+        // Check for existing unique fields
         if (employeeRepository.existsByUsername(dto.getUsername())) {
             throw new DuplicateResourceException("Username already exists");
         }
@@ -28,25 +33,53 @@ public class EmployeeValidator {
         if (employeeRepository.existsByNationalId(dto.getNationalId())) {
             throw new DuplicateResourceException("National ID already exists");
         }
+
+        // Validate department
+        if (dto.getDepartment() == null) {
+            throw new InvalidRequestException("Department is required");
+        }
+
+        // Validate date of employment
+        if (dto.getDateOfEmployment() == null) {
+            throw new InvalidRequestException("Date of employment is required");
+        }
+        if (dto.getDateOfEmployment().isAfter(LocalDate.now())) {
+            throw new InvalidRequestException("Date of employment cannot be in the future");
+        }
     }
 
     public void validateEmployeeUpdate(Employee employee, EmployeeUpdateDTO dto) {
-        if (dto.getUsername() != null &&
-                !dto.getUsername().equals(employee.getUsername()) &&
-                employeeRepository.existsByUsername(dto.getUsername())) {
-            throw new DuplicateResourceException("Username already exists");
+        if (employee == null || dto == null) {
+            throw new InvalidRequestException("Employee and update data cannot be null");
         }
 
-        if (dto.getEmail() != null &&
-                !dto.getEmail().equals(employee.getEmail()) &&
-                employeeRepository.existsByEmail(dto.getEmail())) {
-            throw new DuplicateResourceException("Email already exists");
+        // Check for existing unique fields if they're being changed
+        if (dto.getUsername() != null && !dto.getUsername().equals(employee.getUsername())) {
+            if (employeeRepository.existsByUsername(dto.getUsername())) {
+                throw new DuplicateResourceException("Username already exists");
+            }
         }
 
-        if (dto.getNationalId() != null &&
-                !dto.getNationalId().equals(employee.getNationalId()) &&
-                employeeRepository.existsByNationalId(dto.getNationalId())) {
-            throw new DuplicateResourceException("National ID already exists");
+        if (dto.getEmail() != null && !dto.getEmail().equals(employee.getEmail())) {
+            if (employeeRepository.existsByEmail(dto.getEmail())) {
+                throw new DuplicateResourceException("Email already exists");
+            }
+        }
+
+        if (dto.getNationalId() != null && !dto.getNationalId().equals(employee.getNationalId())) {
+            if (employeeRepository.existsByNationalId(dto.getNationalId())) {
+                throw new DuplicateResourceException("National ID already exists");
+            }
+        }
+
+        // Rest of the validation remains the same...
+        if (dto.getDepartment() != null && dto.getDepartment() == Department.FARM_MANAGEMENT
+                && employee.getStatus() == Employee.EmployeeStatus.ON_LEAVE) {
+            throw new InvalidOperationException("Cannot change department to FARM_MANAGEMENT while on leave");
+        }
+
+        if (dto.getDateOfEmployment() != null && dto.getDateOfEmployment().isAfter(LocalDate.now())) {
+            throw new InvalidRequestException("Date of employment cannot be in the future");
         }
     }
 

@@ -20,19 +20,24 @@ public class EmployeeDTO {
     private Long id;
 
     // ─── Credentials & Identity ──────────────────────────────────────────────────
-    @NotBlank
+    @NotBlank(message = "Username cannot be blank")
+    @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
+    @Pattern(regexp = "^[a-zA-Z0-9._-]+$", message = "Username can only contain alphanumeric characters, dots, underscores and hyphens")
     @Schema(description = "Unique username for the employee", example = "john.farmer")
     private String username;
 
-    @NotBlank
+    @NotBlank(message = "Name cannot be blank")
+    @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
+    @Pattern(regexp = "^[a-zA-Z\\s'-]+$", message = "Name can only contain letters, spaces, apostrophes and hyphens")
     @Schema(description = "Full name of the employee", example = "John Farmer")
     private String name;
 
-    @NotBlank
-    @Schema(description = "Password for the employee account", example = "securePassword123",
+    @NotBlank(message = "Password cannot be blank")
+    @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters")
+    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@#$%^&+=!]).{8,}$",
+            message = "Password must contain at least one uppercase letter, one lowercase letter, one digit and one special character")
+    @Schema(description = "Password for the employee account", example = "Secure@123",
             accessMode = Schema.AccessMode.WRITE_ONLY)
-    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$",
-            message = "Password too weak")
     private String password;
 
     @NotBlank(message = "National ID cannot be blank")
@@ -41,19 +46,19 @@ public class EmployeeDTO {
     @Schema(description = "National identity card number", example = "1234567890")
     private String nationalId;
 
-
     // ─── Contact Info ────────────────────────────────────────────────────────────
-    @Email
-    @NotBlank
+    @Email(message = "Email should be valid")
+    @NotBlank(message = "Email cannot be blank")
     @Schema(description = "Email address of the employee", example = "john.farmer@agro.com")
     private String email;
 
-    @Pattern(regexp = "^\\+?[0-9\\s-]{10,}$")
+    @NotBlank(message = "Phone number cannot be blank")
+    @Pattern(regexp = "^\\+?[0-9\\s-]{10,15}$", message = "Phone number must be between 10-15 digits and may start with +")
     @Schema(description = "Phone number of the employee", example = "+1234567890")
     private String phoneNumber;
 
     // ─── Work Details ────────────────────────────────────────────────────────────
-    @NotNull
+    @NotNull(message = "Department cannot be null")
     @Schema(description = "Department of the employee", example = "POULTRY",
             allowableValues = {
                     "FISHERY", "POULTRY", "RABBITRY", "CONSTRUCTION",
@@ -63,8 +68,8 @@ public class EmployeeDTO {
             })
     private Department department;
 
-    @NotNull
-    @PastOrPresent
+    @NotNull(message = "Date of employment cannot be null")
+    @PastOrPresent(message = "Date of employment must be in the past or present")
     @Schema(description = "Date when the employee was hired", example = "2023-01-15")
     private LocalDate dateOfEmployment;
 
@@ -82,9 +87,11 @@ public class EmployeeDTO {
     @Schema(description = "Suspension duration", accessMode = Schema.AccessMode.READ_ONLY)
     private Duration suspensionDuration;
 
-    @Schema(description = "Timestamp when the employee was created", example = "2023-01-15T09:30:00")
+    @Schema(description = "Timestamp when the employee was created", example = "2023-01-15T09:30:00",
+            accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime createdAt;
 
-    @Schema(description = "Timestamp when the employee was last updated", example = "2023-06-27T15:45:00")
+    @Schema(description = "Timestamp when the employee was last updated", example = "2023-06-27T15:45:00",
+            accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime updatedAt;
 }
