@@ -57,7 +57,8 @@ public class Employee {
     @Column(name = "profile_picture_thumbnail_path")
     private String profilePictureThumbnailPath;
 
-    @Column(name = "total_hours_worked_last_30_days", columnDefinition = "double default 0.0")
+    // Changed from double to numeric(10,2) for PostgreSQL
+    @Column(name = "total_hours_worked_last_30_days", columnDefinition = "numeric(10,2) default 0.0")
     private Double totalHoursWorkedLast30Days = 0.0;
 
     @Enumerated(EnumType.STRING)
