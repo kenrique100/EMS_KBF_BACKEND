@@ -15,6 +15,7 @@ import java.util.List;
 public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByEmployee(Employee employee);
     List<Task> findByDeadlineBeforeAndStatus(Date deadline, Task.TaskStatus status);
+    void deleteByEmployeeId(Long employeeId);
     List<Task> findByStatusAndStopTimeBetween(Task.TaskStatus status, LocalDateTime start, LocalDateTime end);
 
     @Query("SELECT t FROM Task t WHERE t.employee = :employee AND t.createdAt BETWEEN :start AND :end")
