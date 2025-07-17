@@ -46,6 +46,7 @@ public class EmployeeHelper {
         if (dto.getUsername() != null) employee.setUsername(dto.getUsername());
         if (dto.getName() != null) employee.setName(dto.getName());
         if (dto.getGender() != null) employee.setGender(dto.getGender());
+        if (dto.getDateOfBirth() !=null) employee.setDateOfBirth(dto.getDateOfBirth());
         if (dto.getNationalId() != null) employee.setNationalId(dto.getNationalId());
         if (dto.getEmail() != null) employee.setEmail(dto.getEmail());
         if (dto.getPhoneNumber() != null) employee.setPhoneNumber(dto.getPhoneNumber());
