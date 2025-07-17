@@ -22,11 +22,13 @@ public class EmployeeHelper {
         return Employee.builder()
                 .username(dto.getUsername())
                 .name(dto.getName())
+                .gender(dto.getGender())
                 .email(dto.getEmail())
                 .nationalId(dto.getNationalId())
                 .phoneNumber(dto.getPhoneNumber())
                 .department(dto.getDepartment())
                 .password(passwordEncoder.encode(dto.getPassword()))
+                .dateOfBirth((dto.getDateOfBirth()))
                 .dateOfEmployment(dto.getDateOfEmployment())
                 .status(Employee.EmployeeStatus.ACTIVE)
                 .workingDaysCount(0)
@@ -43,6 +45,7 @@ public class EmployeeHelper {
     public void updateEmployeeFields(Employee employee, EmployeeUpdateDTO dto) {
         if (dto.getUsername() != null) employee.setUsername(dto.getUsername());
         if (dto.getName() != null) employee.setName(dto.getName());
+        if (dto.getGender() != null) employee.setGender(dto.getGender());
         if (dto.getNationalId() != null) employee.setNationalId(dto.getNationalId());
         if (dto.getEmail() != null) employee.setEmail(dto.getEmail());
         if (dto.getPhoneNumber() != null) employee.setPhoneNumber(dto.getPhoneNumber());

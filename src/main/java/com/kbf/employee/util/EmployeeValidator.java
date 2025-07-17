@@ -46,6 +46,10 @@ public class EmployeeValidator {
         if (dto.getDateOfEmployment().isAfter(LocalDate.now())) {
             throw new InvalidRequestException("Date of employment cannot be in the future");
         }
+
+        if (dto.getDateOfBirth() == null) {
+            throw new InvalidRequestException("Date of birth is required");
+        }
     }
 
     public void validateEmployeeUpdate(Employee employee, EmployeeUpdateDTO dto) {
@@ -58,6 +62,10 @@ public class EmployeeValidator {
             if (employeeRepository.existsByUsername(dto.getUsername())) {
                 throw new DuplicateResourceException("Username already exists");
             }
+        }
+
+        if (dto.getDateOfBirth() == null) {
+            throw new InvalidRequestException("Date of birth is required");
         }
 
         if (dto.getEmail() != null && !dto.getEmail().equals(employee.getEmail())) {

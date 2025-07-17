@@ -10,6 +10,9 @@ import java.time.LocalDate;
 public class EmployeeInfoDTO {
     private Long id;
     private String name;
+    private LocalDate dateOfBirth;
+    private String phoneNumber;
+    private String nationalId;
     private String department;
     private LocalDate employmentDate;
 }

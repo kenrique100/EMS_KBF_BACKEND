@@ -2,6 +2,8 @@ package com.kbf.employee.dto.request;
 
 import com.kbf.employee.model.enums.Department;
 import com.kbf.employee.model.Employee;
+import com.kbf.employee.model.enums.Gender;
+import com.kbf.employee.validation.Adult;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.Builder;
@@ -31,6 +33,16 @@ public class EmployeeDTO {
     @Pattern(regexp = "^[a-zA-Z\\s'-]+$", message = "Name can only contain letters, spaces, apostrophes and hyphens")
     @Schema(description = "Full name of the employee", example = "John Farmer")
     private String name;
+
+    @NotNull(message = "Gender cannot be null")
+    @Schema(description = "Gender of the employee", example = "MALE",
+            allowableValues = {"MALE", "FEMALE"})
+    private Gender gender;
+
+    @NotNull(message = "Date of Birth cannot be null")
+    @Adult
+    @Schema(description = "Date when the employee was Born", example = "2007-01-01")
+    private LocalDate dateOfBirth;
 
     @NotBlank(message = "Password cannot be blank")
     @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters")

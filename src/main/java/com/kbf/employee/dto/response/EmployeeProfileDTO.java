@@ -4,6 +4,7 @@ import com.kbf.employee.dto.request.SalaryPaymentDTO;
 import com.kbf.employee.dto.request.TaskDTO;
 import com.kbf.employee.model.enums.Department;
 import com.kbf.employee.model.Employee;
+import com.kbf.employee.model.enums.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,6 +30,12 @@ public class EmployeeProfileDTO {
 
     @Schema(description = "Full name", example = "John Doe")
     private String name;
+
+    @Schema(description = "Gender", implementation = Gender.class)
+    private Gender gender;
+
+    @Schema(description = "Date of Birth", example = "2007-01-01")
+    private LocalDate dateOfBirth;
 
     @Schema(description = "Email address", example = "john.doe@example.com")
     private String email;

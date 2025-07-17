@@ -2,6 +2,8 @@ package com.kbf.employee.dto.request;
 
 import com.kbf.employee.model.enums.Department;
 import com.kbf.employee.model.Employee;
+import com.kbf.employee.model.enums.Gender;
+import com.kbf.employee.validation.Adult;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.Builder;
@@ -25,6 +27,15 @@ public class EmployeeUpdateDTO {
     @Pattern(regexp = "^[a-zA-Z\\s'-]+$", message = "Name can only contain letters, spaces, apostrophes and hyphens")
     @Schema(description = "Full name of the employee", example = "John Farmer")
     private String name;
+
+    @Schema(description = "Gender of the employee", example = "FEMALE",
+            allowableValues = {"MALE", "FEMALE"})
+    private Gender gender;
+
+    @NotNull(message = "Date of Birth cannot be null")
+    @Adult
+    @Schema(description = "Date when the employee was Born", example = "2007-01-01")
+    private LocalDate dateOfBirth;
 
     @Size(min = 9, max = 15, message = "National ID must be between 9 and 15 digits")
     @Pattern(regexp = "^[0-9]+$", message = "National ID must contain only digits")

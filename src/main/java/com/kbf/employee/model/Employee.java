@@ -2,6 +2,7 @@ package com.kbf.employee.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kbf.employee.model.enums.Department;
+import com.kbf.employee.model.enums.Gender;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -31,6 +32,13 @@ public class Employee {
 
     @Column(nullable = false)
     private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private Gender gender;
+
+    @Column(name ="date_of_birth", nullable = false)
+    private LocalDate dateOfBirth;
 
     @Column(nullable = false, unique = true)
     private String email;
