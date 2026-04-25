@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class EmployeeConverter {
+
     public EmployeeDTO convertToDTO(Employee employee) {
         return EmployeeDTO.builder()
                 .id(employee.getId())
@@ -28,7 +29,7 @@ public class EmployeeConverter {
                 .profilePicturePath(employee.getProfilePicturePath())
                 .documentPath(employee.getDocumentPath())
                 .totalHoursWorkedLast30Days(employee.getTotalHoursWorkedLast30Days())
-                .createdAt(employee.getCreatedAt()) // <-- Ensure this is set
+                .createdAt(employee.getCreatedAt())
                 .updatedAt(employee.getUpdatedAt())
                 .build();
     }
@@ -50,8 +51,8 @@ public class EmployeeConverter {
                 .profilePicturePath(employee.getProfilePicturePath())
                 .documentPath(employee.getDocumentPath())
                 .totalHoursWorkedLast30Days(employee.getTotalHoursWorkedLast30Days())
-                .createdAt(employee.getCreatedAt().toLocalDate())
-                .updatedAt(employee.getUpdatedAt().toLocalDate())
+                .createdAt(employee.getCreatedAt())      // LocalDateTime -> LocalDateTime
+                .updatedAt(employee.getUpdatedAt())      // LocalDateTime -> LocalDateTime
                 .build();
     }
 

@@ -25,7 +25,7 @@ public class SwaggerConfig {
                                 .email("support@kbf.com"))
                         .license(new License()
                                 .name("Apache 2.0")
-                                .url("http://springdoc.org")))
+                                .url("https://springdoc.org")))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components()
                         .addSecuritySchemes("bearerAuth", new SecurityScheme()

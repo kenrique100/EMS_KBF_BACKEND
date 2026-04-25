@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.InvalidDataAccessResourceUsageException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -278,9 +279,17 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void autoProcessEmployeeStatuses() {
-        LocalDateTime now = LocalDateTime.now();
-        reactivateExpiredEmployees(now);
-        purgeTerminatedEmployees(now);
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            reactivateExpiredEmployees(now);
+            purgeTerminatedEmployees(now);
+        } catch (InvalidDataAccessResourceUsageException e) {
+            log.warn("Skipping autoProcessEmployeeStatuses - database not ready yet: {}", e.getMessage());
+            // DO NOT rethrow
+        } catch (Exception e) {
+            log.error("Unexpected error in autoProcessEmployeeStatuses", e);
+            // you can decide if you want to rethrow or not; for now, don't
+        }
     }
 
     private void reactivateExpiredEmployees(LocalDateTime now) {
@@ -292,11 +301,11 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         toReactivate.forEach(employee -> {
             closeCurrentStatusHistory(employee);
+
             employee.setStatus(Employee.EmployeeStatus.ACTIVE);
             employee.setStatusExpiration(null);
-            employee.setSuspensionDuration(null);
+            employee.setSuspensionDuration(null); // uses Duration→seconds helper
 
-            // KEEP this for audit purposes
             historyRepository.save(EmployeeStatusHistory.builder()
                     .employee(employee)
                     .status(Employee.EmployeeStatus.ACTIVE)
@@ -305,8 +314,12 @@ public class EmployeeServiceImpl implements EmployeeService {
 
             log.info("Auto-reactivated employee: {}", employee.getId());
         });
-        employeeRepository.saveAll(toReactivate);
+
+        if (!toReactivate.isEmpty()) {
+            employeeRepository.saveAll(toReactivate);
+        }
     }
+
 
     @Override
     public EmployeeProfileDTO updateProfilePicture(Long employeeId, MultipartFile file) {

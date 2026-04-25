@@ -63,7 +63,6 @@ public class EmployeeProfileDTO {
     @Schema(description = "Status history records")
     private List<EmployeeStatusHistoryDTO> statusHistory;
 
-
     @Schema(description = "Termination timestamp",
             example = "2023-07-25T14:30:00",
             accessMode = Schema.AccessMode.READ_ONLY)
@@ -84,9 +83,9 @@ public class EmployeeProfileDTO {
     @Schema(description = "List of assigned tasks")
     private List<TaskDTO> tasks;
 
-    @Schema(description = "Creation date", example = "2023-01-15")
-    private LocalDate createdAt;
+    @Schema(description = "Creation timestamp", example = "2023-01-15T09:30:00")
+    private LocalDateTime createdAt;
 
-    @Schema(description = "Last update date", example = "2023-06-01")
-    private LocalDate updatedAt;
+    @Schema(description = "Last update timestamp", example = "2023-06-01T15:00:00")
+    private LocalDateTime updatedAt;
 }

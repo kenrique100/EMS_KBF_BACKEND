@@ -67,8 +67,8 @@ public class Employee {
     @Column(name = "status_expiration")
     private LocalDateTime statusExpiration;
 
-    @Column(name = "suspension_duration")
-    private Duration suspensionDuration;
+    @Column(name = "suspension_duration_seconds")
+    private Long suspensionDurationSeconds;
 
     @Column(name = "termination_timestamp")
     private LocalDateTime terminationTimestamp;
@@ -79,7 +79,8 @@ public class Employee {
     @Column(name = "last_productivity_reset_date")
     private LocalDate lastProductivityResetDate;
 
-    @Column(name = "current_period_start_date", columnDefinition = "date default CURRENT_DATE")
+    // FIXED: remove DB default, keep Java default
+    @Column(name = "current_period_start_date")
     private LocalDate currentPeriodStartDate = LocalDate.now();
 
     @Column(name = "total_productive_days", columnDefinition = "integer default 0")
@@ -125,5 +126,17 @@ public class Employee {
 
     public enum EmployeeStatus {
         ACTIVE, INACTIVE, ON_LEAVE, SUSPENDED, TERMINATED
+    }
+
+    public Duration getSuspensionDuration() {
+        return suspensionDurationSeconds != null
+                ? Duration.ofSeconds(suspensionDurationSeconds)
+                : null;
+    }
+
+    public void setSuspensionDuration(Duration duration) {
+        this.suspensionDurationSeconds = duration != null
+                ? duration.toSeconds()
+                : null;
     }
 }

@@ -21,17 +21,13 @@ public class EmployeeStatusUpdateDTO {
     private LocalDate expectedReturnDate;
 
     @Schema(description = "Suspension duration in ISO-8601 format (e.g., PT1H30M)",
-           example = "PT1H30M",
-           required = false)
+            example = "PT1H30M",
+            required = false)
     @Pattern(regexp = "^PT(\\d+H)?(\\d+M)?(\\d+S)?$", message = "Must be in ISO-8601 duration format (e.g., PT1H30M)")
-    private String suspensionDuration; // Alternative to Duration if needed
+    private String suspensionDuration;
 
-
-    // Helper method to get Duration
+    // Helper to convert incoming string to Duration for service layer
     public Duration getSuspensionDuration() {
-        if (suspensionDuration != null) {
-            return Duration.parse(suspensionDuration);
-        }
-        return null;
+        return suspensionDuration != null ? Duration.parse(suspensionDuration) : null;
     }
 }

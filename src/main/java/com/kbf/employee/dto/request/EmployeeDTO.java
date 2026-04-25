@@ -15,9 +15,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * Data-transfer object used for both creating and returning employee records.
- */
 @Data
 @Builder
 @Schema(description = "Employee Data Transfer Object")
@@ -26,7 +23,6 @@ public class EmployeeDTO {
     @Schema(description = "Employee ID", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    // ─── Credentials & Identity ──────────────────────────────────────────────────
     @NotBlank
     @Schema(description = "Unique username for the employee", example = "john.farmer")
     private String username;
@@ -40,7 +36,6 @@ public class EmployeeDTO {
             accessMode = Schema.AccessMode.WRITE_ONLY)
     private String password;
 
-    // ─── Contact Info ────────────────────────────────────────────────────────────
     @Email
     @NotBlank
     @Schema(description = "Email address of the employee", example = "john.farmer@agro.com")
@@ -50,7 +45,6 @@ public class EmployeeDTO {
     @Schema(description = "Phone number of the employee", example = "+1234567890")
     private String phoneNumber;
 
-    // ─── Work Details ────────────────────────────────────────────────────────────
     @NotNull
     @Schema(description = "Department of the employee", example = "POULTRY",
             allowableValues = {
@@ -66,7 +60,6 @@ public class EmployeeDTO {
     @Schema(description = "Date when the employee was hired", example = "2023-01-15")
     private LocalDate dateOfEmployment;
 
-    // ─── Status & File Paths ─────────────────────────────────────────────────────
     @Schema(description = "Employee status", example = "ACTIVE",
             accessMode = Schema.AccessMode.READ_ONLY)
     private Employee.EmployeeStatus status;
@@ -95,5 +88,4 @@ public class EmployeeDTO {
 
     @Schema(description = "Timestamp when the employee was last updated", example = "2023-06-27T15:45:00")
     private LocalDateTime updatedAt;
-
 }
